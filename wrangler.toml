@@ -1,0 +1,8 @@
+name = "kerala-marketplace-api-v2"
+main = "worker.js"
+compatibility_date = "2026-10-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kerala-marketplace-db"
+database_id = "6f0ac318-eb85-4e61-83a6-068bf75cdbac"
