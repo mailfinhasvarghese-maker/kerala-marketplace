@@ -38,5 +38,54 @@ function render(){let c=$('catFilter').value,l=$('locFilter').value,k=$('keyword
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3300)}
 function openModal(type,p=null){mode=type;selected=p;$('modalTitle').textContent=type==='provider'?'List your service':'Request a booking';$('modalSubtitle').textContent=type==='provider'?'Provider registration will be connected in a later version.':'Selected profile: '+p.name+' · '+p.service;let f=type==='provider'?[['Your name','name','text','e.g. Anil Kumar'],['Business or service name','business','text','e.g. Anil Taxi Service'],['Mobile number','phone','tel','Your contact number'],['Service category','service','select',''],['District','district','select',''],['Short description','details','textarea','What services do you offer?']]:[['Your name','name','text','Your name'],['Mobile number','phone','tel','Your contact number'],['Preferred date','date','date',''],['Pickup / service location','location','text','Town or area'],['Additional details','details','textarea','Describe what you need']];$('modalFields').innerHTML=f.map(x=>{let id='f_'+x[1],html='<div class="field '+(x[1]==='details'?'full':'')+'"><label for="'+id+'">'+x[0]+'</label>';if(x[1]==='service')html+='<select id="'+id+'" required><option value="">Choose a category</option><option>Taxi & travel</option><option>Rentals</option><option>Skilled workers</option><option>Home services</option><option>Event services</option></select>';else if(x[1]==='district')html+='<select id="'+id+'" required><option value="">Choose district</option>'+['Thiruvananthapuram','Kollam','Pathanamthitta','Alappuzha','Kottayam','Idukki','Ernakulam','Thrissur','Palakkad','Malappuram','Kozhikode','Wayanad','Kannur','Kasaragod'].map(d=>'<option>'+d+'</option>').join('')+'</select>';else if(x[1]==='details')html+='<textarea id="'+id+'" rows="3" placeholder="'+x[3]+'"></textarea>';else html+='<input id="'+id+'" type="'+x[2]+'" placeholder="'+x[3]+'" '+(['name','phone'].includes(x[1])?'required':'')+' '+(x[1]==='date'?'min="'+new Date().toISOString().slice(0,10)+'"':'')+'>';return html+'</div>'}).join('');$('submit').textContent=type==='provider'?'Submit provider interest':'Submit demo request';$('modalBg').classList.add('open');document.body.style.overflow='hidden'}
 function closeModal(){$('modalBg').classList.remove('open');document.body.style.overflow=''}
-$('searchForm').addEventListener('submit',e=>{e.preventDefault();render();$('providers').scrollIntoView({behavior:'smooth'})});$('clear').addEventListener('click',()=>{$('catFilter').value='all';$('locFilter').value='all';$('keyword').value='';render()});document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{$('catFilter').value=b.dataset.cat;render();$('providers').scrollIntoView({behavior:'smooth'})}));document.querySelectorAll('[data-join]').forEach(b=>b.addEventListener('click',()=>openModal('provider')));$('close').addEventListener('click',closeModal);$('cancel').addEventListener('click',closeModal);$('modalBg').addEventListener('click',e=>{if(e.target===$('modalBg'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});$('requestForm').addEventListener('submit',e=>{e.preventDefault();closeModal();toast(mode==='provider'?'Preview only: provider registration is not connected yet.':'Preview only: booking request was not sent or saved.')});$('year').textContent=new Date().getFullYear();render();
+$('searchForm').addEventListener('submit',e=>{e.preventDefault();render();$('providers').scrollIntoView({behavior:'smooth'})});$('clear').addEventListener('click',()=>{$('catFilter').value='all';$('locFilter').value='all';$('keyword').value='';render()});document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{$('catFilter').value=b.dataset.cat;render();$('providers').scrollIntoView({behavior:'smooth'})}));document.querySelectorAll('[data-join]').forEach(b=>b.addEventListener('click',()=>openModal('provider')));$('close').addEventListener('click',closeModal);$('cancel').addEventListener('click',closeModal);$('modalBg').addEventListener('click',e=>{if(e.target===$('modalBg'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+$('requestForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  if (mode !== 'provider') {
+    closeModal();
+    toast('Booking requests are not connected yet.');
+    return;
+  }
+
+  const submitButton = $('submit');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Submitting...';
+
+  const payload = {
+    contact_name: $('f_name').value.trim(),
+    business_name: $('f_business').value.trim(),
+    phone: $('f_phone').value.trim(),
+    category: $('f_service').value.trim(),
+    district: $('f_district').value.trim(),
+    description: $('f_details').value.trim()
+  };
+
+  try {
+    const response = await fetch(
+      'https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider-register',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Registration failed.');
+    }
+
+    closeModal();
+    toast('Registration submitted successfully for review.');
+    $('requestForm').reset();
+  } catch (error) {
+    toast('Could not submit: ' + error.message);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Submit provider interest';
+  }
+});
+$('year').textContent=new Date().getFullYear();render();
 </script></body></html>
