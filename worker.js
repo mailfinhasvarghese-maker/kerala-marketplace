@@ -1,10 +1,9 @@
-```javascript
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // CORS configuration
     const origin = request.headers.get("Origin");
     const allowedOrigin = "https://kerala-marketplace.pages.dev";
 
@@ -22,7 +21,6 @@ export default {
     const respond = (data, status = 200) =>
       new Response(JSON.stringify(data), { status, headers });
 
-    // Handle browser CORS preflight requests before checking the database.
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
     }
@@ -35,7 +33,7 @@ export default {
     }
 
     try {
-      // Check database connectivity.
+      // Database health check
       if (path === "/api/health" && request.method === "GET") {
         await env.DB.prepare("SELECT 1").first();
 
@@ -45,7 +43,7 @@ export default {
         });
       }
 
-      // List active providers.
+      // List and search active providers
       if (path === "/api/providers" && request.method === "GET") {
         const conditions = ["p.status = 'active'"];
         const values = [];
@@ -75,44 +73,36 @@ export default {
           values.push(term, term, term, term);
         }
 
-        const result = await env.DB.prepare(`
-          SELECT
-            p.id,
-            p.business_name,
-            p.contact_name,
-            p.phone,
-            p.email,
-            p.district,
-            p.town,
-            p.address,
-            p.description,
-            p.years_experience,
-            p.created_at,
-            c.name AS category_name,
-            c.slug AS category_slug,
-            ROUND(
-              AVG(CASE WHEN r.status = 'published' THEN r.rating END),
-              1
-            ) AS average_rating,
-            COUNT(
-              CASE WHEN r.status = 'published' THEN r.id END
-            ) AS review_count
-          FROM providers p
-          LEFT JOIN categories c ON c.id = p.category_id
-          LEFT JOIN reviews r ON r.provider_id = p.id
-          WHERE ${conditions.join(" AND ")}
-          GROUP BY p.id
-          ORDER BY p.created_at DESC
-          LIMIT 100
-        `).bind(...values).all();
+        const sql =
+          "SELECT " +
+          "p.id, p.business_name, p.contact_name, p.phone, p.email, " +
+          "p.district, p.town, p.address, p.description, " +
+          "p.years_experience, p.created_at, " +
+          "c.name AS category_name, c.slug AS category_slug, " +
+          "ROUND(AVG(CASE WHEN r.status = 'published' THEN r.rating END), 1) AS average_rating, " +
+          "COUNT(CASE WHEN r.status = 'published' THEN r.id END) AS review_count " +
+          "FROM providers p " +
+          "LEFT JOIN categories c ON c.id = p.category_id " +
+          "LEFT JOIN reviews r ON r.provider_id = p.id " +
+          "WHERE " + conditions.join(" AND ") + " " +
+          "GROUP BY p.id " +
+          "ORDER BY p.created_at DESC " +
+          "LIMIT 100";
+
+        const result = await env.DB.prepare(sql)
+          .bind(...values)
+          .all();
 
         return respond({
           providers: result.results || []
         });
       }
 
-      // Register a provider for manual review.
-      if (path === "/api/provider-register" && request.method === "POST") {
+      // Register a provider for manual review
+      if (
+        path === "/api/provider-register" &&
+        request.method === "POST"
+      ) {
         const body = await request.json();
 
         const businessName = String(body.business_name || "").trim();
@@ -131,48 +121,43 @@ export default {
         const categoryValue = String(body.category || "").trim();
 
         if (categoryValue) {
-          const categoryRow = await env.DB.prepare(`
-            SELECT id
-            FROM categories
-            WHERE LOWER(slug) = LOWER(?)
-               OR LOWER(name) = LOWER(?)
-            LIMIT 1
-          `).bind(categoryValue, categoryValue).first();
+          const categorySql =
+            "SELECT id FROM categories " +
+            "WHERE LOWER(slug) = LOWER(?) " +
+            "OR LOWER(name) = LOWER(?) LIMIT 1";
+
+          const categoryRow = await env.DB.prepare(categorySql)
+            .bind(categoryValue, categoryValue)
+            .first();
 
           if (categoryRow) {
             categoryId = categoryRow.id;
           }
         }
 
-        const result = await env.DB.prepare(`
-          INSERT INTO providers (
-            business_name,
-            contact_name,
+        const insertSql =
+          "INSERT INTO providers (" +
+          "business_name, contact_name, phone, email, district, " +
+          "town, address, description, years_experience, category_id, status" +
+          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
+
+        const result = await env.DB.prepare(insertSql)
+          .bind(
+            businessName,
+            contactName,
             phone,
-            email,
+            String(body.email || "").trim() || null,
             district,
-            town,
-            address,
-            description,
-            years_experience,
-            category_id,
-            status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-        `).bind(
-          businessName,
-          contactName,
-          phone,
-          String(body.email || "").trim() || null,
-          district,
-          String(body.town || "").trim() || null,
-          String(body.address || "").trim() || null,
-          String(body.description || "").trim() || null,
-          Math.max(
-            0,
-            Number.parseInt(body.years_experience, 10) || 0
-          ),
-          categoryId
-        ).run();
+            String(body.town || "").trim() || null,
+            String(body.address || "").trim() || null,
+            String(body.description || "").trim() || null,
+            Math.max(
+              0,
+              Number.parseInt(body.years_experience, 10) || 0
+            ),
+            categoryId
+          )
+          .run();
 
         return respond({
           ok: true,
@@ -182,7 +167,7 @@ export default {
         }, 201);
       }
 
-      // Submit a booking request to an active provider.
+      // Submit a booking request to an active provider
       if (
         path === "/api/booking-requests" &&
         request.method === "POST"
@@ -192,7 +177,9 @@ export default {
         const providerId = Number.parseInt(body.provider_id, 10);
         const customerName = String(body.customer_name || "").trim();
         const customerPhone = String(body.customer_phone || "").trim();
-        const serviceLocation = String(body.service_location || "").trim();
+        const serviceLocation = String(
+          body.service_location || ""
+        ).trim();
 
         if (
           !Number.isInteger(providerId) ||
@@ -207,11 +194,13 @@ export default {
           }, 400);
         }
 
-        const provider = await env.DB.prepare(`
-          SELECT id
-          FROM providers
-          WHERE id = ? AND status = 'active'
-        `).bind(providerId).first();
+        const providerSql =
+          "SELECT id FROM providers " +
+          "WHERE id = ? AND status = 'active'";
+
+        const provider = await env.DB.prepare(providerSql)
+          .bind(providerId)
+          .first();
 
         if (!provider) {
           return respond({
@@ -219,25 +208,23 @@ export default {
           }, 404);
         }
 
-        const result = await env.DB.prepare(`
-          INSERT INTO booking_requests (
-            provider_id,
-            customer_name,
-            customer_phone,
-            customer_email,
-            service_date,
-            service_location,
-            details
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          providerId,
-          customerName,
-          customerPhone,
-          String(body.customer_email || "").trim() || null,
-          String(body.service_date || "").trim() || null,
-          serviceLocation,
-          String(body.details || "").trim() || null
-        ).run();
+        const bookingSql =
+          "INSERT INTO booking_requests (" +
+          "provider_id, customer_name, customer_phone, customer_email, " +
+          "service_date, service_location, details" +
+          ") VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        const result = await env.DB.prepare(bookingSql)
+          .bind(
+            providerId,
+            customerName,
+            customerPhone,
+            String(body.customer_email || "").trim() || null,
+            String(body.service_date || "").trim() || null,
+            serviceLocation,
+            String(body.details || "").trim() || null
+          )
+          .run();
 
         return respond({
           ok: true,
@@ -259,4 +246,3 @@ export default {
     }
   }
 };
-```
