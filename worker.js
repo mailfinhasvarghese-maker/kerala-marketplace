@@ -71,7 +71,7 @@ export default {
             "(p.business_name LIKE ? OR p.description LIKE ? OR p.town LIKE ? OR p.district LIKE ?)"
           );
 
-          const term = `%${search}%`;
+          const term = "%" + search + "%";
           values.push(term, term, term, term);
         }
 
