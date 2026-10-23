@@ -527,22 +527,7 @@ function openProfile(p) {
         <h3>Customer reviews</h3>
         <div id="publishedReviews"><p>Loading published reviews…</p></div>
       </div>
-      <form class="review-form" id="reviewForm">
-        <h3>Share your experience</h3>
-        <p style="font-size:11px;color:var(--muted);margin:0 0 12px">Reviews are checked by our team before they appear publicly.</p>
-        <div class="field"><label for="reviewerName">Your name</label><input id="reviewerName" maxlength="100" required placeholder="Enter your name"></div>
-        <div class="field"><label>Rating</label><div class="stars">
-          <label><input type="radio" name="reviewRating" value="1" required> 1 ★</label>
-          <label><input type="radio" name="reviewRating" value="2"> 2 ★</label>
-          <label><input type="radio" name="reviewRating" value="3"> 3 ★</label>
-          <label><input type="radio" name="reviewRating" value="4"> 4 ★</label>
-          <label><input type="radio" name="reviewRating" value="5"> 5 ★</label>
-        </div></div>
-        <div class="field"><label for="reviewText">Your review</label><textarea id="reviewText" rows="3" maxlength="2000" required placeholder="Describe your experience"></textarea></div>
-        <button class="btn primary" type="submit" id="reviewSubmit">Submit review</button>
-        <span id="reviewMessage" style="font-size:11px;color:var(--muted)"></span>
-      </form>
-    </div>
+      <div class="review-form"><h3>Rate a completed booking</h3><p style="font-size:11px;color:var(--muted)">Ratings are available only to signed-in customers after a booking is marked completed. Open My account to rate an eligible booking.</p><button class="btn outline" type="button" id="profileMyBookings">View my bookings</button></div>
     <div class="profile-footer">
       <button class="btn outline" id="profileDismiss">Close</button>
       <button class="btn primary" id="profileBook">Request booking →</button>
@@ -555,38 +540,7 @@ function openProfile(p) {
     openModal('booking', p);
   });
   loadPublishedReviews(p.id);
-  $('reviewForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const button = $('reviewSubmit');
-    const message = $('reviewMessage');
-    button.disabled = true;
-    button.textContent = 'Submitting…';
-    message.textContent = '';
-    const rating = document.querySelector('input[name="reviewRating"]:checked');
-    try {
-      const response = await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider_id: p.id,
-          reviewer_name: $('reviewerName').value.trim(),
-          rating: rating ? Number(rating.value) : 0,
-          review_text: $('reviewText').value.trim()
-        })
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Could not submit review.');
-      $('reviewForm').reset();
-      message.textContent = 'Submitted for moderation. It will appear after approval.';
-      toast('Review submitted for moderation.');
-    } catch (error) {
-      message.textContent = error.message;
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Submit review';
-    }
-  });
-}
+  $('profileMyBookings').addEventListener('click', function(){ closeProfile(); openAccount(); });}
 
 async function loadPublishedReviews(providerId) {
   const target = $('publishedReviews');
