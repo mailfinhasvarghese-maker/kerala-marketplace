@@ -118,7 +118,15 @@ export default {
         }
 
         let categoryId = null;
-        const categoryValue = String(body.category || "").trim();
+        const submittedCategory = String(body.category || "").trim();
+        const categoryAliases = {
+          "taxi": "taxi-transportation",
+          "rentals": "item-equipment-rentals",
+          "workers": "labour-skilled-workers",
+          "home services": "home-business-services"
+        };
+        const categoryKey = submittedCategory.toLowerCase();
+        const categoryValue = categoryAliases[categoryKey] || submittedCategory;
 
         if (categoryValue) {
           const categorySql =
