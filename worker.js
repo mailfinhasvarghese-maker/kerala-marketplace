@@ -240,6 +240,14 @@ export default {
       ) {
         const body = await request.json();
 
+        const accountEmail = String(body.email || "").trim().toLowerCase();
+        const accountPassword = String(body.password || "");
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail) || accountPassword.length < 10 || accountPassword.length > 200) {
+          return respond({error:"A valid email and password of at least 10 characters are required to create your provider account."},400);
+        }
+        if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email = ?").bind(accountEmail).first()) {
+          return respond({error:"An account with this email already exists. Please sign in with another email."},409);
+        }
         const businessName = String(body.business_name || "").trim();
         const contactName = String(body.contact_name || "").trim();
         const phone = String(body.phone || "").trim();
@@ -302,11 +310,18 @@ export default {
           )
           .run();
 
+        const providerId = result.meta.last_row_id;
+        const salt = randomToken();
+        const passwordDigest = await derivePassword(accountPassword, salt);
+        const accountResult = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,provider_id) VALUES (?,?,?,?, 'provider', ?)").bind(accountEmail,contactName,salt,passwordDigest,providerId).run();
+        const token = await issueSession(accountResult.meta.last_row_id, env.DB);
         return respond({
           ok: true,
-          message: "Registration submitted for review.",
-          provider_id: result.meta.last_row_id,
-          status: "pending"
+          message: "Provider registration submitted for review. Your provider account is ready.",
+          provider_id: providerId,
+          status: "pending",
+          token,
+          account: {id:accountResult.meta.last_row_id,email:accountEmail,display_name:contactName,role:"provider",provider_id:providerId}
         }, 201);
       }
 
