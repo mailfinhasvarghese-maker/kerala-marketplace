@@ -29,6 +29,9 @@ button{font:inherit;font-weight:650;padding:10px 14px;border-radius:8px;border:0
     <div id="notice" class="notice" role="status">Admin authentication must first be configured in Cloudflare Worker secrets.</div>
   </section>
   <section id="list" aria-live="polite"></section>
+  <h2>Customer review moderation</h2>
+  <p>Publish appropriate reviews or reject reviews that are abusive, irrelevant or misleading.</p>
+  <section id="reviewList" aria-live="polite"></section>
 </main>
 <script>
 const API = "https://kerala-marketplace-api-v2.abmg-events.workers.dev";
@@ -50,7 +53,7 @@ async function load(){
     const data=await call("/api/admin/providers");
     const providers=data.providers||[];
     message(providers.length ? providers.length+" pending registration(s)." : "No pending provider registrations.");
-    if(!providers.length)return;
+    if(!providers.length){ $("list").innerHTML = '<div class="panel">No pending provider registrations.</div>'; await loadReviews(); return; }
     $("list").innerHTML=providers.map(p=>`
       <article class="provider">
         <h2>${esc(p.business_name)}</h2>
@@ -65,7 +68,35 @@ async function load(){
         </div>
       </article>`).join("");
     $("list").querySelectorAll("button[data-id]").forEach(button=>button.addEventListener("click",()=>review(Number(button.dataset.id),button.dataset.status,button)));
+    await loadReviews();
   }catch(error){message(error.message);if(error.message==="Unauthorized.")sessionStorage.removeItem("nattukaar_admin_key");}
+}
+async function loadReviews(){
+  const target=$("reviewList");
+  target.innerHTML="<div class=\"panel\">Loading pending reviews…</div>";
+  try{
+    const data=await call("/api/admin/reviews");
+    const reviews=data.reviews||[];
+    if(!reviews.length){target.innerHTML="<div class=\"panel\">No pending customer reviews.</div>";return;}
+    target.innerHTML=reviews.map(r=>`<article class="provider">
+      <h3>${esc(r.business_name)} · ★ ${esc(r.rating)}/5</h3>
+      <div class="meta">Review #${esc(r.id)} · ${esc(r.reviewer_name)} · ${esc(r.created_at)}</div>
+      <p>${esc(r.review_text)}</p>
+      <button class="primary" data-review-id="${esc(r.id)}" data-review-status="published">Publish review</button>
+      <button class="reject" data-review-id="${esc(r.id)}" data-review-status="rejected">Reject review</button>
+    </article>`).join("");
+    target.querySelectorAll("button[data-review-id]").forEach(button=>button.addEventListener("click",()=>reviewCustomer(Number(button.dataset.reviewId),button.dataset.reviewStatus,button)));
+  }catch(error){target.innerHTML="<div class=\"panel\">Could not load reviews: "+esc(error.message)+"</div>";}
+}
+async function reviewCustomer(id,status,button){
+  const action=status==="published"?"publish":"reject";
+  if(!confirm("Are you sure you want to "+action+" review #"+id+"?"))return;
+  button.disabled=true;
+  try{
+    const result=await call("/api/admin/review-status",{method:"POST",body:JSON.stringify({review_id:id,status})});
+    message(result.message||"Review updated.");
+    await loadReviews();
+  }catch(error){message(error.message);button.disabled=false;}
 }
 async function review(id,status,button){
   const action=status==="active"?"activate":"reject";
