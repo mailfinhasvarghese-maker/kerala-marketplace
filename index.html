@@ -604,6 +604,46 @@ async function loadPublishedReviews(providerId) {
   }
 }
 
+
+function authHeaders(extra={}) { return {...extra, ...(authToken ? {Authorization:'Bearer '+authToken} : {})}; }
+function updateAuthButtons() { $('authOpen').textContent=currentAccount?'Signed in':'Sign in'; $('accountOpen').style.display=currentAccount?'inline-block':'none'; if(currentAccount)$('accountOpen').textContent=currentAccount.role==='provider'?'Provider bookings':'My bookings'; }
+function openAuth(mode='login') {
+  authMode=mode;
+  $('authTitle').textContent=mode==='register'?'Create customer account':'Sign in to Nattukaar';
+  $('authSubtitle').textContent=mode==='register'?'Create an account to request services and rate completed bookings.':'Use your email and password.';
+  $('authSwitch').textContent=mode==='register'?'I already have an account':'Create account';
+  $('authSubmit').textContent=mode==='register'?'Create account':'Sign in';
+  const fields=mode==='register'?[['Your name','displayName','text'],['Email','email','email'],['Password (10+ characters)','password','password']]:[['Email','email','email'],['Password','password','password']];
+  $('authFields').innerHTML=fields.map(function(x){return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" type="'+x[2]+'" '+(x[2]==='password'?'minlength="10" ':'')+'required></div>';}).join('');
+  $('authMessage').textContent='Email verification and password recovery are not configured yet.';
+  $('authBg').classList.add('open'); document.body.style.overflow='hidden';
+}
+function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
+async function refreshAccount(){
+  if(!authToken){currentAccount=null;updateAuthButtons();return;}
+  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;updateAuthButtons();}
+  catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;updateAuthButtons();}
+}
+async function openAccount(){
+  if(!authToken){openAuth('login');return;} await refreshAccount(); if(!currentAccount){openAuth('login');return;}
+  $('accountTitle').textContent=currentAccount.role==='provider'?'Provider bookings':'My bookings';$('accountSubtitle').textContent=currentAccount.email;$('accountContent').innerHTML='<p>Loading bookings…</p>';$('accountBg').classList.add('open');document.body.style.overflow='hidden';
+  try{
+    const path=currentAccount.role==='provider'?'/api/provider/bookings':'/api/customer/bookings';
+    const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev'+path,{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load bookings.');
+    const bookings=d.bookings||[];if(!bookings.length){$('accountContent').innerHTML='<p>No bookings yet.</p>';return;}
+    $('accountContent').innerHTML=bookings.map(function(b){
+      let html='<article style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0"><strong>'+esc(b.business_name||('Booking #'+b.id))+'</strong><p style="font-size:12px">Booking #'+esc(b.id)+' · '+esc(b.status)+'<br>'+esc(b.service_date||'Date not set')+' · '+esc(b.service_location||'')+'</p>';
+      if(currentAccount.role==='provider'&&b.status==='pending')html+='<button class="btn primary" data-status="accepted" data-id="'+b.id+'">Accept</button><button class="btn outline" data-status="rejected" data-id="'+b.id+'">Reject</button>';
+      if(currentAccount.role==='provider'&&b.status==='accepted')html+='<button class="btn primary" data-status="completed" data-id="'+b.id+'">Mark completed</button>';
+      if(currentAccount.role==='customer'&&b.status==='completed'&&!b.has_review)html+='<form data-rate="'+b.id+'"><div class="field"><label>Rating</label><select name="rating" required><option value="">Choose stars</option><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Poor</option><option value="1">1 — Very poor</option></select></div><div class="field"><label>Review</label><textarea name="review_text" rows="2" maxlength="2000" required></textarea></div><button class="btn primary">Submit review</button></form>';
+      else if(currentAccount.role==='customer'&&b.has_review)html+='<p>Review already submitted.</p>';
+      return html+'</article>';
+    }).join('');
+    $('accountContent').querySelectorAll('[data-status]').forEach(function(btn){btn.addEventListener('click',async function(){btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider/booking-status',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(btn.dataset.id),status:btn.dataset.status})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Booking updated: '+dd.status);openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
+    $('accountContent').querySelectorAll('form[data-rate]').forEach(function(form){form.addEventListener('submit',async function(e){e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/reviews',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(form.dataset.rate),rating:Number(form.elements.rating.value),review_text:form.elements.review_text.value.trim()})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Review submitted for moderation.');openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
+  }catch(e){$('accountContent').textContent=e.message;}
+}
+
 function closeProfile() {
   $('profileBg').classList.remove('open');
   document.body.style.overflow = '';
@@ -699,6 +739,24 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 
+
+$('authOpen').addEventListener('click',function(){currentAccount?openAccount():openAuth('login');});
+$('accountOpen').addEventListener('click',openAccount);
+$('authClose').addEventListener('click',closeAuth);
+$('accountClose').addEventListener('click',function(){$('accountBg').classList.remove('open');document.body.style.overflow='';});
+$('authBg').addEventListener('click',function(e){if(e.target===$('authBg'))closeAuth();});
+$('accountBg').addEventListener('click',function(e){if(e.target===$('accountBg')){$('accountBg').classList.remove('open');document.body.style.overflow='';}});
+$('authSwitch').addEventListener('click',function(){openAuth(authMode==='register'?'login':'register');});
+$('authForm').addEventListener('submit',async function(e){
+ e.preventDefault();const btn=$('authSubmit');btn.disabled=true;
+ try{const payload={email:$('auth_email').value.trim(),password:$('auth_password').value};if(authMode==='register')payload.display_name=$('auth_displayName').value.trim();
+ const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/'+(authMode==='register'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw Error(d.error||'Sign in failed.');
+ authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;updateAuthButtons();closeAuth();toast('Signed in successfully.');
+ if(pendingProvider){const p=pendingProvider;pendingProvider=null;openModal('booking',p);}
+ }catch(err){$('authMessage').textContent=err.message;}finally{btn.disabled=false;}
+});
+$('signOut').addEventListener('click',async function(){try{await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/logout',{method:'POST',headers:authHeaders()});}catch(e){}authToken='';currentAccount=null;localStorage.removeItem('nattukaar_token');updateAuthButtons();$('accountBg').classList.remove('open');document.body.style.overflow='';toast('Signed out.');});
+
 $('searchForm').addEventListener('submit', e => {
   e.preventDefault();
   render();
@@ -747,6 +805,7 @@ $('requestForm').addEventListener('submit', async e => {
 
   const submitButton = $('submit');
   const isProvider = mode === 'provider';
+  if (!isProvider && !authToken) { pendingProvider=selected; closeModal(); openAuth('login'); toast('Sign in before requesting a service.'); return; }
 
   if (!isProvider && (!selected || !Number.isInteger(Number(selected.id)))) {
     toast('Please select an active provider first.');
@@ -783,7 +842,7 @@ $('requestForm').addEventListener('submit', async e => {
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload)
     });
 
@@ -795,6 +854,7 @@ $('requestForm').addEventListener('submit', async e => {
 
     $('requestForm').reset();
     closeModal();
+    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;updateAuthButtons();}
 
     toast(isProvider
       ? 'Registration submitted successfully for review.'
@@ -810,6 +870,7 @@ $('requestForm').addEventListener('submit', async e => {
 });
 
 $('year').textContent = new Date().getFullYear();
+refreshAccount();
 loadProviders();
 </script>
 </body>
