@@ -11,7 +11,7 @@ export default {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Vary": "Origin",
       ...(origin === allowedOrigin
         ? { "Access-Control-Allow-Origin": allowedOrigin }
@@ -173,6 +173,66 @@ export default {
           provider_id: result.meta.last_row_id,
           status: "pending"
         }, 201);
+      }
+
+      // Protected admin: list pending provider registrations
+      if (
+        path === "/api/admin/providers" &&
+        request.method === "GET"
+      ) {
+        if (!env.ADMIN_API_KEY) {
+          return respond({ error: "Admin authentication is not configured." }, 503);
+        }
+        if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
+          return respond({ error: "Unauthorized." }, 401);
+        }
+
+        const result = await env.DB.prepare(
+          "SELECT p.id, p.business_name, p.contact_name, p.phone, p.email, " +
+          "p.district, p.town, p.address, p.description, p.years_experience, " +
+          "p.created_at, c.name AS category_name, c.slug AS category_slug " +
+          "FROM providers p LEFT JOIN categories c ON c.id = p.category_id " +
+          "WHERE p.status = 'pending' ORDER BY p.created_at ASC LIMIT 200"
+        ).all();
+
+        return respond({ providers: result.results || [] });
+      }
+
+      // Protected admin: activate or reject a pending provider
+      if (
+        path === "/api/admin/provider-status" &&
+        request.method === "POST"
+      ) {
+        if (!env.ADMIN_API_KEY) {
+          return respond({ error: "Admin authentication is not configured." }, 503);
+        }
+        if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
+          return respond({ error: "Unauthorized." }, 401);
+        }
+
+        const body = await request.json();
+        const providerId = Number.parseInt(body.provider_id, 10);
+        const status = String(body.status || "").trim().toLowerCase();
+
+        if (!Number.isInteger(providerId) || providerId < 1 ||
+            !["active", "rejected"].includes(status)) {
+          return respond({ error: "Provide a valid provider_id and status (active or rejected)." }, 400);
+        }
+
+        const result = await env.DB.prepare(
+          "UPDATE providers SET status = ? WHERE id = ? AND status = 'pending'"
+        ).bind(status, providerId).run();
+
+        if (!result.meta || result.meta.changes !== 1) {
+          return respond({ error: "Pending provider not found or already reviewed." }, 404);
+        }
+
+        return respond({
+          ok: true,
+          provider_id: providerId,
+          status,
+          message: status === "active" ? "Provider activated and now public." : "Provider rejected."
+        });
       }
 
       // Submit a booking request to an active provider
