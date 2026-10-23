@@ -171,7 +171,7 @@ h1 em{font-style:normal;color:var(--g)}
       <a href="#categories">Categories</a>
       <a href="#providers">Find providers</a>
       <a href="#how">How it works</a>
-      <button class="btn primary" data-join>List your service ↗</button>
+      <button class="btn outline" id="authOpen">Sign in</button><button class="btn light" id="accountOpen" style="display:none">My bookings</button><button class="btn primary" data-join>List your service ↗</button>
     </nav>
   </div>
 </header>
@@ -354,13 +354,14 @@ h1 em{font-style:normal;color:var(--g)}
     <div id="profileContent"></div>
   </article>
 </div>
-<div class="toast" id="toast" role="status"></div>
+<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
 
 <script>
 const data = [];
 const $ = id => document.getElementById(id);
 let mode = 'booking';
 let selected = null;
+let authMode='login', currentAccount=null, authToken=localStorage.getItem('nattukaar_token')||'', pendingProvider=null;
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -630,6 +631,8 @@ function openModal(type, p = null) {
         ['Your name', 'name', 'text', 'e.g. Anil Kumar'],
         ['Business or service name', 'business', 'text', 'e.g. Anil Taxi Service'],
         ['Mobile number', 'phone', 'tel', 'Your contact number'],
+        ['Email for sign-in', 'email', 'email', 'you@example.com'],
+        ['Password (10+ characters)', 'password', 'password', 'Create a password'],
         ['Service category', 'service', 'select', ''],
         ['District', 'district', 'select', ''],
         ['Short description', 'details', 'textarea', 'What services do you offer?']
@@ -673,7 +676,7 @@ function openModal(type, p = null) {
     } else {
       html += '<input id="' + id + '" type="' + x[2] +
         '" placeholder="' + x[3] + '" ' +
-        (['name', 'phone'].includes(x[1]) ? 'required' : '') +
+        (['name', 'phone', 'email', 'password'].includes(x[1]) ? 'required' : '') +
         (x[1] === 'date'
           ? ' min="' + new Date().toISOString().slice(0, 10) + '"'
           : '') +
@@ -756,6 +759,8 @@ $('requestForm').addEventListener('submit', async e => {
   const payload = isProvider
     ? {
         contact_name: $('f_name').value.trim(),
+        email: $('f_email').value.trim(),
+        password: $('f_password').value,
         business_name: $('f_business').value.trim(),
         phone: $('f_phone').value.trim(),
         category: $('f_service').value.trim(),
