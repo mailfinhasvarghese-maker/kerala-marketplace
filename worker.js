@@ -33,6 +33,27 @@ export default {
     }
 
     try {
+      // Protected schema inspection for safe, non-destructive upgrades.
+      if (path === "/api/admin/schema" && request.method === "GET") {
+        if (!env.ADMIN_API_KEY) {
+          return respond({ error: "Admin authentication is not configured." }, 503);
+        }
+        if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
+          return respond({ error: "Unauthorized." }, 401);
+        }
+        const tables = ["providers", "categories", "booking_requests", "customer_reviews"];
+        const schema = {};
+        for (const table of tables) {
+          const exists = await env.DB.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?"
+          ).bind(table).first();
+          schema[table] = exists
+            ? (await env.DB.prepare("PRAGMA table_info(" + table + ")").all()).results
+            : [];
+        }
+        return respond({ schema });
+      }
+
       // Database health check
       if (path === "/api/health" && request.method === "GET") {
         await env.DB.prepare("SELECT 1").first();
