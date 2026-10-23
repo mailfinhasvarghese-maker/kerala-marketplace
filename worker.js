@@ -87,7 +87,7 @@ export default {
         if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
           return respond({ error: "Unauthorized." }, 401);
         }
-        const tables = ["providers", "categories", "booking_requests", "customer_reviews"];
+        const tables = ["providers", "categories", "booking_requests", "customer_reviews", "user_accounts", "user_sessions"];
         const schema = {};
         for (const table of tables) {
           const exists = await env.DB.prepare(
