@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nattukaar · Provider Review</title>
+<style>
+:root{color-scheme:light;--ink:#17211b;--muted:#68746c;--line:#dfe7e1;--green:#176b43;--bg:#f5f8f5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:920px;margin:0 auto;padding:28px 16px 60px}h1{font-size:clamp(25px,4vw,34px);margin:0 0 6px}p{color:var(--muted)}.panel,.provider{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;margin:16px 0}
+label{display:block;font-weight:650;margin:8px 0}input{width:100%;padding:12px;border:1px solid #bdc9c0;border-radius:8px;font:inherit}
+button{font:inherit;font-weight:650;padding:10px 14px;border-radius:8px;border:0;cursor:pointer;margin:8px 8px 0 0}
+.primary{background:var(--green);color:white}.reject{background:#fff0ee;color:#a62c20;border:1px solid #f0c7c2}.secondary{background:#edf2ee;color:var(--ink)}
+.meta{color:var(--muted);font-size:14px}.actions{margin-top:10px}.notice{padding:10px 12px;border-radius:8px;background:#edf2ee;margin-top:12px;white-space:pre-wrap}.hidden{display:none}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row button{margin-top:0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Provider review</h1>
+  <p>Review new provider registrations before they appear in public listings.</p>
+  <section class="panel">
+    <label for="key">Admin API key</label>
+    <input id="key" type="password" autocomplete="current-password" placeholder="Enter the Cloudflare ADMIN_API_KEY secret">
+    <div class="row">
+      <button class="primary" id="connect">Connect & load pending</button>
+      <button class="secondary" id="forget">Clear key</button>
+      <button class="secondary" id="refresh">Refresh list</button>
+    </div>
+    <div id="notice" class="notice" role="status">Admin authentication must first be configured in Cloudflare Worker secrets.</div>
+  </section>
+  <section id="list" aria-live="polite"></section>
+</main>
+<script>
+const API = "https://kerala-marketplace-api-v2.abmg-events.workers.dev";
+const $ = id => document.getElementById(id);
+const keyInput = $("key");
+keyInput.value = sessionStorage.getItem("nattukaar_admin_key") || "";
+function message(text){$("notice").textContent=text;}
+async function call(path, options={}){
+  const key=keyInput.value.trim();
+  const response=await fetch(API+path,{...options,headers:{"Content-Type":"application/json","Authorization":"Bearer "+key,...(options.headers||{})}});
+  const data=await response.json().catch(()=>({error:"Unexpected response from server."}));
+  if(!response.ok) throw new Error(data.error||("Request failed ("+response.status+")"));
+  return data;
+}
+function esc(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+async function load(){
+  $("list").innerHTML="";
+  try{
+    const data=await call("/api/admin/providers");
+    const providers=data.providers||[];
+    message(providers.length ? providers.length+" pending registration(s)." : "No pending provider registrations.");
+    if(!providers.length)return;
+    $("list").innerHTML=providers.map(p=>`
+      <article class="provider">
+        <h2>${esc(p.business_name)}</h2>
+        <div class="meta">Registration #${esc(p.id)} · ${esc(p.category_name||"Category not assigned")} · ${esc(p.district)}${p.town?" / "+esc(p.town):""}</div>
+        <p><strong>Contact:</strong> ${esc(p.contact_name)}<br><strong>Phone:</strong> ${esc(p.phone)}${p.email?"<br><strong>Email:</strong> "+esc(p.email):""}</p>
+        ${p.address?"<p><strong>Address:</strong> "+esc(p.address)+"</p>":""}
+        ${p.description?"<p>"+esc(p.description)+"</p>":""}
+        <div class="meta">Experience: ${esc(p.years_experience||0)} year(s)</div>
+        <div class="actions">
+          <button class="primary" data-id="${esc(p.id)}" data-status="active">Confirm & Activate</button>
+          <button class="reject" data-id="${esc(p.id)}" data-status="rejected">Reject registration</button>
+        </div>
+      </article>`).join("");
+    $("list").querySelectorAll("button[data-id]").forEach(button=>button.addEventListener("click",()=>review(Number(button.dataset.id),button.dataset.status,button)));
+  }catch(error){message(error.message);if(error.message==="Unauthorized.")sessionStorage.removeItem("nattukaar_admin_key");}
+}
+async function review(id,status,button){
+  const action=status==="active"?"activate":"reject";
+  if(!confirm("Are you sure you want to "+action+" provider registration #"+id+"?"))return;
+  button.disabled=true;
+  try{
+    const result=await call("/api/admin/provider-status",{method:"POST",body:JSON.stringify({provider_id:id,status})});
+    message(result.message||"Registration updated.");
+    await load();
+  }catch(error){message(error.message);button.disabled=false;}
+}
+$("connect").addEventListener("click",()=>{sessionStorage.setItem("nattukaar_admin_key",keyInput.value.trim());load();});
+$("refresh").addEventListener("click",load);
+$("forget").addEventListener("click",()=>{sessionStorage.removeItem("nattukaar_admin_key");keyInput.value="";$("list").innerHTML="";message("Admin key cleared from this browser session.");});
+if(keyInput.value)load();
+</script>
+</body>
+</html>
