@@ -94,6 +94,7 @@ h1 em{font-style:normal;color:var(--g)}
 .profile-detail small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
 .profile-detail a{color:var(--g);font-weight:700;text-decoration:none}
 .profile-footer{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.review-list{border-top:1px solid var(--line);padding-top:16px;margin-top:10px}.review-item{padding:12px 0;border-bottom:1px solid var(--line)}.review-item:last-child{border-bottom:0}.review-item strong{font-size:12px}.review-item p{margin:5px 0 0}.review-form{background:#f6faf7;border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:18px}.review-form h3{margin:0 0 10px}.review-form .field{margin-bottom:10px}.stars{display:flex;gap:7px}.stars label{display:flex;align-items:center;gap:4px;font-size:12px}
 @media(max-width:640px){.profile-modal{padding:19px}.profile-details{grid-template-columns:1fr}}
 .empty{padding:35px;text-align:center;border:1px dashed #c8d9ce;border-radius:15px;color:var(--muted);grid-column:1/-1}
 .how{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -521,6 +522,25 @@ function openProfile(p) {
       <h3>About this provider</h3>
       <p>${esc(p.desc)}</p>
       <p style="font-size:11px">Ratings are based only on published reviews. A profile with no reviews is shown as new, not as a zero-star rating.</p>
+      <div class="review-list">
+        <h3>Customer reviews</h3>
+        <div id="publishedReviews"><p>Loading published reviews…</p></div>
+      </div>
+      <form class="review-form" id="reviewForm">
+        <h3>Share your experience</h3>
+        <p style="font-size:11px;color:var(--muted);margin:0 0 12px">Reviews are checked by our team before they appear publicly.</p>
+        <div class="field"><label for="reviewerName">Your name</label><input id="reviewerName" maxlength="100" required placeholder="Enter your name"></div>
+        <div class="field"><label>Rating</label><div class="stars">
+          <label><input type="radio" name="reviewRating" value="1" required> 1 ★</label>
+          <label><input type="radio" name="reviewRating" value="2"> 2 ★</label>
+          <label><input type="radio" name="reviewRating" value="3"> 3 ★</label>
+          <label><input type="radio" name="reviewRating" value="4"> 4 ★</label>
+          <label><input type="radio" name="reviewRating" value="5"> 5 ★</label>
+        </div></div>
+        <div class="field"><label for="reviewText">Your review</label><textarea id="reviewText" rows="3" maxlength="2000" required placeholder="Describe your experience"></textarea></div>
+        <button class="btn primary" type="submit" id="reviewSubmit">Submit review</button>
+        <span id="reviewMessage" style="font-size:11px;color:var(--muted)"></span>
+      </form>
     </div>
     <div class="profile-footer">
       <button class="btn outline" id="profileDismiss">Close</button>
@@ -533,6 +553,54 @@ function openProfile(p) {
     closeProfile();
     openModal('booking', p);
   });
+  loadPublishedReviews(p.id);
+  $('reviewForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const button = $('reviewSubmit');
+    const message = $('reviewMessage');
+    button.disabled = true;
+    button.textContent = 'Submitting…';
+    message.textContent = '';
+    const rating = document.querySelector('input[name="reviewRating"]:checked');
+    try {
+      const response = await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider_id: p.id,
+          reviewer_name: $('reviewerName').value.trim(),
+          rating: rating ? Number(rating.value) : 0,
+          review_text: $('reviewText').value.trim()
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not submit review.');
+      $('reviewForm').reset();
+      message.textContent = 'Submitted for moderation. It will appear after approval.';
+      toast('Review submitted for moderation.');
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Submit review';
+    }
+  });
+}
+
+async function loadPublishedReviews(providerId) {
+  const target = $('publishedReviews');
+  target.innerHTML = '<p>Loading published reviews…</p>';
+  try {
+    const response = await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider-reviews?provider_id=' + encodeURIComponent(providerId));
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not load reviews.');
+    const reviews = result.reviews || [];
+    target.innerHTML = reviews.length ? reviews.map(r =>
+      '<article class="review-item"><strong>★ ' + esc(r.rating) + ' / 5 · ' + esc(r.reviewer_name) + '</strong><p>' + esc(r.review_text) + '</p></article>'
+    ).join('') : '<p>No published reviews yet. You can be the first to share feedback.</p>';
+  } catch (error) {
+    target.innerHTML = '<p>Reviews are temporarily unavailable.</p>';
+  }
 }
 
 function closeProfile() {
