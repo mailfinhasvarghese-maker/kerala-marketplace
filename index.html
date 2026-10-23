@@ -421,36 +421,36 @@ async function loadProviders() {
     };
 
     data.splice(0, data.length, ...(result.providers || []).map(p => {
-      const slug = String(p.category_slug || '').toLowerCase();
+  const slug = String(p.category_slug || '').toLowerCase();
 
-      const category =
-        slug === 'taxi' ? 'Taxi' :
-        slug === 'rentals' ? 'Rentals' :
-        slug === 'workers' ? 'Workers' :
-        slug === 'home-services' ? 'Home services' :
-        slug === 'events' ? 'Events' :
-        (p.category_name || 'Other');
+  const category =
+    slug === 'taxi-transportation' ? 'Taxi' :
+    slug === 'item-equipment-rentals' ? 'Rentals' :
+    slug === 'labour-skilled-workers' ? 'Workers' :
+    slug === 'home-business-services' ? 'Home services' :
+    (p.category_name || 'Other');
 
-      return {
-        id: Number(p.id),
-        name: p.business_name || 'Local provider',
-        category,
-        service: p.category_name || 'Local service',
-        location: p.district || 'Kerala',
-        icon: icons[category] || '📍',
-        years: Number(p.years_experience) || 0,
-        rating: p.average_rating == null ? 'New' : p.average_rating,
-        reviews: Number(p.review_count) || 0,
-        price: 'Quote on request',
-        desc: p.description || 'Contact this provider to discuss the service you need.',
-        tags: [
-          p.business_name,
-          p.category_name,
-          p.district,
-          p.town,
-          p.description
-        ].filter(Boolean).join(' ')
-      };
+  return {
+    id: Number(p.id),
+    name: p.business_name || 'Local provider',
+    category,
+    service: p.category_name || 'Local service',
+    location: p.district || 'Kerala',
+    icon: icons[category] || '📍',
+    years: Number(p.years_experience) || 0,
+    rating: p.average_rating == null ? 'New' : p.average_rating,
+    reviews: Number(p.review_count) || 0,
+    price: 'Quote on request',
+    desc: p.description || 'Contact this provider to discuss the service you need.',
+    tags: [
+      p.business_name,
+      p.category_name,
+      p.district,
+      p.town,
+      p.description
+    ].filter(Boolean).join(' ')
+  };
+}));
     }));
 
     render();
