@@ -711,7 +711,7 @@ function closeModal() {
 
 
 $('authOpen').addEventListener('click',function(){currentAccount?openAccount():openAuth('login');});
-$('accountOpen').addEventListener('click',openAccount);
+$('accountOpen').addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();if(currentAccount&&currentAccount.role==='provider'){location.href='/provider-dashboard.html';return;}openAccount();});
 $('authClose').addEventListener('click',closeAuth);
 $('accountClose').addEventListener('click',function(){$('accountBg').classList.remove('open');document.body.style.overflow='';});
 $('authBg').addEventListener('click',function(e){if(e.target===$('authBg'))closeAuth();});
