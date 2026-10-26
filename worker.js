@@ -24,7 +24,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
-  const additions = {booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
+  const additions = {booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
     const info = await db.prepare("PRAGMA table_info("+table+")").all();
     const names = new Set((info.results||[]).map(x=>x.name));
@@ -145,15 +145,44 @@ export default {
       if (path === "/api/customer/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
         if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
-        const result = await env.DB.prepare("SELECT b.id,b.provider_id,p.business_name,b.service_date,b.service_location,b.details,b.status,b.created_at,CASE WHEN r.id IS NULL THEN 0 ELSE 1 END AS has_review FROM booking_requests b JOIN providers p ON p.id=b.provider_id LEFT JOIN customer_reviews r ON r.booking_request_id=b.id WHERE b.customer_account_id=? ORDER BY b.created_at DESC LIMIT 200").bind(account.id).all();
+        const result = await env.DB.prepare("SELECT b.id,b.provider_id,p.business_name,b.service_date,b.service_location,b.details,b.status,b.created_at,b.provider_quote,b.provider_quote_note,b.customer_counter_offer,b.customer_counter_note,CASE WHEN r.id IS NULL THEN 0 ELSE 1 END AS has_review FROM booking_requests b JOIN providers p ON p.id=b.provider_id LEFT JOIN customer_reviews r ON r.booking_request_id=b.id WHERE b.customer_account_id=? ORDER BY b.created_at DESC LIMIT 200").bind(account.id).all();
         return respond({bookings:result.results||[]});
       }
       if (path === "/api/provider/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
-        const result = await env.DB.prepare("SELECT id,customer_name,customer_phone,customer_email,service_date,service_location,details,status,created_at FROM booking_requests WHERE provider_id=? ORDER BY created_at DESC LIMIT 200").bind(account.provider_id).all();
+        const result = await env.DB.prepare("SELECT id,customer_name,customer_phone,customer_email,service_date,service_location,details,status,created_at,provider_quote,provider_quote_note,customer_counter_offer,customer_counter_note FROM booking_requests WHERE provider_id=? ORDER BY created_at DESC LIMIT 200").bind(account.provider_id).all();
         return respond({bookings:result.results||[]});
       }
+      if (path === "/api/provider/booking-quote" && request.method === "POST") {
+        const account = await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const body = await request.json();
+        const id = Number.parseInt(body.booking_request_id,10);
+        const quote = Number(body.quote);
+        const note = String(body.note||"").trim().slice(0,1000);
+        if(!Number.isInteger(id)||id<1||!Number.isFinite(quote)||quote<0||quote>100000000) return respond({error:"Enter a valid payment amount."},400);
+        const booking = await env.DB.prepare("SELECT id,status FROM booking_requests WHERE id=? AND provider_id=?").bind(id,account.provider_id).first();
+        if(!booking) return respond({error:"Booking not found for this provider."},404);
+        if(!["pending","accepted"].includes(String(booking.status).toLowerCase())) return respond({error:"A quote can be sent only for pending or accepted bookings."},409);
+        await env.DB.prepare("UPDATE booking_requests SET provider_quote=?,provider_quote_note=? WHERE id=? AND provider_id=?").bind(quote,note||null,id,account.provider_id).run();
+        return respond({ok:true,booking_request_id:id,provider_quote:quote,provider_quote_note:note});
+      }
+      if (path === "/api/customer/booking-counter-offer" && request.method === "POST") {
+        const account = await getAccount(request,env.DB);
+        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        const body = await request.json();
+        const id = Number.parseInt(body.booking_request_id,10);
+        const offer = Number(body.offer);
+        const note = String(body.note||"").trim().slice(0,1000);
+        if(!Number.isInteger(id)||id<1||!Number.isFinite(offer)||offer<0||offer>100000000) return respond({error:"Enter a valid counter-offer amount."},400);
+        const booking = await env.DB.prepare("SELECT id,status FROM booking_requests WHERE id=? AND customer_account_id=?").bind(id,account.id).first();
+        if(!booking) return respond({error:"Booking not found for this customer account."},404);
+        if(!["pending","accepted"].includes(String(booking.status).toLowerCase())) return respond({error:"A counter-offer can be sent only for pending or accepted bookings."},409);
+        await env.DB.prepare("UPDATE booking_requests SET customer_counter_offer=?,customer_counter_note=? WHERE id=? AND customer_account_id=?").bind(offer,note||null,id,account.id).run();
+        return respond({ok:true,booking_request_id:id,customer_counter_offer:offer,customer_counter_note:note});
+      }
+
       if (path === "/api/provider/booking-status" && request.method === "POST") {
         const account = await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
