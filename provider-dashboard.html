@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Provider Dashboard | Nattukaar</title>
+<style>
+:root{--green:#176b4e;--dark:#18231d;--muted:#68766e;--line:#dfe8e2;--pale:#edf6f0;--bg:#f5f8f6;--white:#fff;--red:#a52b2b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--dark);font:15px/1.55 Arial,Helvetica,sans-serif}a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3}.wrap{max-width:1180px;margin:auto;padding:0 22px}.nav{min-height:74px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{font-size:23px;font-weight:800;color:var(--green)}.brand small{display:block;font-size:9px;letter-spacing:1.5px;color:var(--muted)}.nav-actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}.primary{background:var(--green);color:white}.soft{background:var(--pale);color:var(--green)}.outline{background:#fff;border:1px solid var(--line);color:var(--dark)}.danger{color:var(--red);background:#fff0f0;border:1px solid #f0d2d2}.main{padding:30px 0 60px}.welcome{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--green);font-weight:800}.welcome h1{font-size:clamp(27px,4vw,38px);line-height:1.15;margin:7px 0}.sub{color:var(--muted);margin:0}.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:22px;align-items:start}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 8px 26px #193e2a08}.sidebar{position:sticky;top:95px}.sidebar h3,.section-head h2{margin:0 0 5px}.account-email{font-size:13px;color:var(--muted);overflow-wrap:anywhere}.menu{display:grid;gap:8px;margin-top:18px}.menu a,.menu button{width:100%;text-align:left}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}.stat{background:#fff;border:1px solid var(--line);border-radius:13px;padding:16px}.stat span{font-size:12px;color:var(--muted)}.stat strong{display:block;font-size:28px;margin-top:4px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.section-head p{margin:0;color:var(--muted);font-size:13px}.booking{border:1px solid var(--line);border-radius:14px;padding:17px;margin:12px 0;background:#fff}.booking-top{display:flex;justify-content:space-between;gap:12px;align-items:start}.booking h3{margin:0;font-size:18px}.status{display:inline-block;border-radius:99px;padding:4px 9px;background:#f3f4f3;font-size:12px;font-weight:800;text-transform:capitalize}.status.pending{background:#fff4d8;color:#825800}.status.accepted{background:#e5f5e9;color:#176b4e}.status.completed{background:#e7efff;color:#234d9b}.status.rejected{background:#ffeded;color:#9d2929}.details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}.detail{background:#f7faf8;border-radius:10px;padding:11px}.detail label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:800;margin-bottom:3px}.detail p{margin:0;overflow-wrap:anywhere}.contact,.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.quote{background:#f3f9f5;border:1px solid #e0eee4;border-radius:12px;padding:14px;margin:14px 0}.quote h4{margin:0 0 10px}.field{display:grid;gap:5px;margin:10px 0}.field label{font-size:12px;font-weight:800;color:#4e5c53}.field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff}.field textarea{resize:vertical}.empty,.loading{padding:30px 15px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}.error{padding:12px;border-radius:10px;background:#fff0f0;color:#982727}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.muted{color:var(--muted);font-size:13px}footer{padding:22px 0;color:var(--muted);font-size:12px;text-align:center}@media(max-width:760px){.layout{grid-template-columns:1fr}.sidebar{position:static}.stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.stat{padding:11px}.stat strong{font-size:23px}.welcome{align-items:flex-start;flex-direction:column}.details,.settings-grid{grid-template-columns:1fr}.nav{align-items:flex-start;padding-top:14px;padding-bottom:14px;flex-direction:column}.wrap{padding:0 14px}.panel{padding:15px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap nav"><a class="brand" href="/">Nattukaar<small>KERALA LOCAL MARKETPLACE</small></a><div class="nav-actions"><a class="btn outline" href="/">← Home page</a><button id="refreshBtn" class="btn soft">↻ Refresh bookings</button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
+<main class="wrap main">
+<section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section>
+<div id="pageError" hidden class="error"></div>
+<div class="layout">
+<aside class="panel sidebar"><h3>Account settings</h3><p class="account-email" id="accountEmail">Loading account…</p><div class="menu"><a class="btn soft" href="#bookings">📋 Booking management</a><a class="btn outline" href="#settings">⚙ Account details</a><a class="btn outline" href="/">↗ View marketplace</a></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><p class="muted">Signed in as a provider. Keep your contact details available so customers can coordinate service requests.</p><div id="profileSummary" class="muted">Loading provider account details…</div></aside>
+<div>
+<section class="stats"><div class="stat"><span>All requests</span><strong id="totalCount">—</strong></div><div class="stat"><span>Needs response</span><strong id="pendingCount">—</strong></div><div class="stat"><span>Accepted / active</span><strong id="activeCount">—</strong></div></section>
+<section class="panel" id="bookings"><div class="section-head"><div><h2>Customer bookings</h2><p>Booking details and next actions appear below.</p></div><span class="eyebrow" id="lastUpdated"></span></div><div id="bookingList" class="loading">Loading bookings…</div></section>
+<section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account type</label><p>Provider</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div></section>
+</div></div></main><footer><div class="wrap">Nattukaar · Kerala Local Marketplace</div></footer>
+<script>
+const API='https://kerala-marketplace-api-v2.abmg-events.workers.dev';
+const $=id=>document.getElementById(id);
+let token=localStorage.getItem('nattukaar_token')||'', account=null, bookings=[];
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function headers(extra={}){return {...extra,...(token?{Authorization:'Bearer '+token}:{})};}
+function money(v){return Number(v).toLocaleString(undefined,{maximumFractionDigits:2});}
+function showError(msg){$('pageError').hidden=false;$('pageError').textContent=msg;}
+async function jsonFetch(path,opts={}){const r=await fetch(API+path,{...opts,headers:headers(opts.headers||{})});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed.');return d;}
+async function init(){
+ if(!token){location.href='/?provider-login=1';return;}
+ try{
+  const me=await jsonFetch('/api/auth/me');account=me.account;
+  if(account.role!=='provider'){location.href='/';return;}
+  const name=account.display_name||account.email.split('@')[0];
+  $('greeting').textContent='Hi, '+name;
+  $('accountEmail').textContent=account.email;
+  $('profileSummary').textContent='Provider account ID: '+(account.provider_id||'Not linked');
+  $('settingName').textContent=name;$('settingEmail').textContent=account.email;
+  await loadBookings();
+ }catch(e){showError(e.message);if(/sign in/i.test(e.message)){localStorage.removeItem('nattukaar_token');location.href='/';}}
+}
+async function loadBookings(){
+ $('bookingList').className='loading';$('bookingList').textContent='Loading bookings…';
+ try{const d=await jsonFetch('/api/provider/bookings');bookings=d.bookings||[];
+  $('totalCount').textContent=bookings.length;
+  $('pendingCount').textContent=bookings.filter(b=>b.status==='pending').length;
+  $('activeCount').textContent=bookings.filter(b=>b.status==='accepted').length;
+  $('lastUpdated').textContent='Updated just now';
+  if(!bookings.length){$('bookingList').className='empty';$('bookingList').innerHTML='<strong>No customer bookings yet</strong><p>New booking requests for your service will appear here.</p>';return;}
+  $('bookingList').className='';$('bookingList').innerHTML=bookings.map(renderBooking).join('');
+  bindActions();
+ }catch(e){$('bookingList').className='error';$('bookingList').textContent=e.message;}
+}
+function renderBooking(b){
+ let s=String(b.status||'pending').toLowerCase();
+ let digits=String(b.customer_phone||'').replace(/[^0-9]/g,'');
+ let h='<article class="booking"><div class="booking-top"><div><div class="eyebrow">Request #'+esc(b.id)+'</div><h3>'+esc(b.customer_name||'Customer request')+'</h3></div><span class="status '+esc(s)+'">'+esc(s)+'</span></div>';
+ h+='<div class="details"><div class="detail"><label>Customer phone</label><p>'+esc(b.customer_phone||'Not provided')+'</p></div><div class="detail"><label>Customer email</label><p>'+esc(b.customer_email||'Not provided')+'</p></div><div class="detail"><label>Requested date</label><p>'+esc(b.service_date||'Flexible / not specified')+'</p></div><div class="detail"><label>Service location</label><p>'+esc(b.service_location||'Not provided')+'</p></div><div class="detail" style="grid-column:1/-1"><label>Job details</label><p>'+esc(b.details||'No additional details supplied')+'</p></div></div>';
+ h+='<div class="contact">';
+ if(b.customer_phone){h+='<a class="btn outline" href="tel:'+esc(b.customer_phone)+'">☎ Call customer</a><a class="btn soft" target="_blank" rel="noopener" href="https://wa.me/'+esc(digits)+'?text='+encodeURIComponent('Hello '+(b.customer_name||'')+', I am contacting you about your Nattukaar booking #'+b.id+'.')+'">WhatsApp message</a><a class="btn outline" target="_blank" rel="noopener" href="https://wa.me/'+esc(digits)+'">WhatsApp call (open chat)</a>';}
+ if(b.customer_email)h+='<a class="btn outline" href="mailto:'+esc(b.customer_email)+'">✉ Email customer</a>';
+ h+='</div>';
+ if(b.provider_quote!==null&&b.provider_quote!==undefined)h+='<div class="detail"><label>Your payment offer</label><p><strong>'+money(b.provider_quote)+'</strong> · '+esc(b.provider_quote_note||'No note added')+'</p></div>';
+ if(b.customer_counter_offer!==null&&b.customer_counter_offer!==undefined)h+='<div class="detail"><label>Customer counter-offer</label><p><strong>'+money(b.customer_counter_offer)+'</strong> · '+esc(b.customer_counter_note||'No note added')+'</p></div>';
+ if(['pending','accepted'].includes(s)){
+  h+='<form class="quote" data-quote="'+b.id+'"><h4>Set or adjust payment</h4><p class="muted">Enter your proposed price. For a heavy job, explain the extra work so the customer can discuss a different amount.</p><div class="field"><label>Proposed amount (currency agreed with customer)</label><input name="quote" type="number" min="0" step="0.01" required value="'+(b.provider_quote??'')+'" placeholder="Enter amount"></div><div class="field"><label>Work included / reason for adjustment</label><textarea name="note" rows="2" maxlength="1000" placeholder="Describe the job and any extra charges">'+esc(b.provider_quote_note||'')+'</textarea></div><button class="btn soft" type="submit">Send / update payment offer</button></form>';
+ }
+ h+='<div class="actions">';
+ if(s==='pending')h+='<button class="btn primary" data-status="accepted" data-id="'+b.id+'">✓ Accept order</button><button class="btn danger" data-status="rejected" data-id="'+b.id+'">Reject request</button>';
+ if(s==='accepted')h+='<button class="btn primary" data-status="completed" data-id="'+b.id+'">Mark job completed</button>';
+ if(s==='completed')h+='<span class="muted">This booking is marked completed.</span>';
+ if(s==='rejected')h+='<span class="muted">This request was rejected.</span>';
+ h+='</div></article>';return h;
+}
+function bindActions(){
+ document.querySelectorAll('form[data-quote]').forEach(form=>form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{await jsonFetch('/api/provider/booking-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({booking_request_id:Number(form.dataset.quote),quote:Number(form.elements.quote.value),note:form.elements.note.value.trim()})});alert('Payment offer saved. The customer can view it in My bookings.');await loadBookings();}catch(err){alert(err.message);btn.disabled=false;}}));
+ document.querySelectorAll('[data-status]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{await jsonFetch('/api/provider/booking-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({booking_request_id:Number(btn.dataset.id),status:btn.dataset.status})});await loadBookings();}catch(err){alert(err.message);btn.disabled=false;}}));
+}
+$('refreshBtn').addEventListener('click',loadBookings);$('jumpBookings').addEventListener('click',()=>$('bookings').scrollIntoView({behavior:'smooth'}));
+$('signOut').addEventListener('click',async()=>{try{await jsonFetch('/api/auth/logout',{method:'POST'});}catch(e){}localStorage.removeItem('nattukaar_token');location.href='/';});
+init();
+</script></body></html>
