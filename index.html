@@ -721,7 +721,9 @@ $('authForm').addEventListener('submit',async function(e){
  e.preventDefault();const btn=$('authSubmit');btn.disabled=true;
  try{const payload={email:$('auth_email').value.trim(),password:$('auth_password').value};if(authMode==='register')payload.display_name=$('auth_displayName').value.trim();
  const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/'+(authMode==='register'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw Error(d.error||'Sign in failed.');
- authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;updateAuthButtons();closeAuth();toast('Signed in successfully.');
+ authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;updateAuthButtons();closeAuth();
+ if(currentAccount&&currentAccount.role==='provider'){window.location.assign('/provider-dashboard.html');return;}
+ toast('Signed in successfully.');
  if(pendingProvider){const p=pendingProvider;pendingProvider=null;openModal('booking',p);}
  }catch(err){$('authMessage').textContent=err.message;}finally{btn.disabled=false;}
 });
@@ -824,7 +826,7 @@ $('requestForm').addEventListener('submit', async e => {
 
     $('requestForm').reset();
     closeModal();
-    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;updateAuthButtons();}
+    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;updateAuthButtons();if(currentAccount&&currentAccount.role==='provider'){window.location.assign('/provider-dashboard.html');return;}}
 
     toast(isProvider
       ? 'Registration submitted successfully for review.'
