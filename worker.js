@@ -134,10 +134,10 @@ export default {
         const body = await request.json();
         const email = String(body.email||"").trim().toLowerCase();
         const password = String(body.password||"");
-        const account = await env.DB.prepare("SELECT id,email,display_name,password_salt,password_hash,role,provider_id FROM user_accounts WHERE email=?").bind(email).first();
+        const account = await env.DB.prepare("SELECT a.id,a.email,a.display_name,a.password_salt,a.password_hash,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_accounts a LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE a.email=?").bind(email).first();
         if (!account || await derivePassword(password,account.password_salt) !== account.password_hash) return respond({error:"Email or password is incorrect."},401);
         const token = await issueSession(account.id,env.DB);
-        return respond({ok:true,token,account:{id:account.id,email:account.email,display_name:account.display_name,role:account.role,provider_id:account.provider_id}});
+        return respond({ok:true,token,account:{id:account.id,email:account.email,display_name:account.display_name,role:account.role,provider_id:account.provider_id,job_role_id:account.job_role_id||null,job_title:account.job_title||null,permissions_json:account.permissions_json||"[]",is_main_admin:Number(account.is_main_admin||0)===1}});
       }
       if (path === "/api/auth/me" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
