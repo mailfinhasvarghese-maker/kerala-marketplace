@@ -11,7 +11,7 @@
 <style>
 #mapPanel{background:#fff;border:1px solid var(--line);border-radius:17px;padding:14px;margin:18px 0 22px}#providerMap{height:380px;border-radius:12px;z-index:1}.map-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.map-note{font-size:12px;color:var(--muted)}.location-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.location-row .btn{font-size:12px;padding:9px 12px}
 :root{--g:#176b4d;--gd:#104a36;--mint:#e8f5ee;--ink:#17231d;--muted:#68766e;--line:#e2e9e4;--paper:#f7faf8;--white:#fff;--shadow:0 14px 38px #183d2a12}
-*{box-sizing:border-box}
+.provider-gallery{margin-bottom:12px;background:#eef3ef;border-radius:10px;overflow:hidden}.provider-gallery img{display:block;width:100%;height:180px;object-fit:cover;cursor:pointer}.gallery-empty{height:100px;display:grid;place-items:center;color:var(--muted);font-size:12px}.gallery-controls{display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px}.gallery-controls button{background:#fff;border:1px solid var(--line);border-radius:7px;padding:4px 10px}.gallery-count{font-size:11px;color:var(--muted)}.profile-gallery{display:flex;gap:8px;overflow-x:auto;margin:12px 0}.profile-gallery img{width:105px;height:85px;object-fit:cover;border-radius:8px;cursor:pointer;flex:0 0 auto}*{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
 button,input,select,textarea{font:inherit}
@@ -395,6 +395,8 @@ function render() {
   $('providerGrid').innerHTML = list.length
     ? list.map(p => `
       <article class="card">
+        <div class="provider-gallery" data-gallery="${p.id}">${p.images && p.images.length ? `<img src="${p.images[0].url}" alt="${esc(p.name)} photo" data-gallery-image="${p.id}" data-index="0">` : `<div class="gallery-empty">📷 No service photos yet</div>`}</div>
+        ${p.images && p.images.length ? `<div class="gallery-controls"><button type="button" data-gallery-prev="${p.id}">‹ Previous</button><span class="gallery-count" data-gallery-count="${p.id}">1 / ${p.images.length}</span><button type="button" data-gallery-next="${p.id}">Next ›</button></div>` : ""}
         <div class="provider-top">
           <div class="avatar">${p.icon}</div>
           <div class="pname">
@@ -418,6 +420,8 @@ function render() {
     `).join('')
     : '<div class="empty"><strong>No active providers found.</strong><p>Try another service or district, or check back later.</p></div>';
 
+  document.querySelectorAll('[data-gallery-image]').forEach(img=>img.addEventListener('click',()=>{const p=data.find(x=>x.id===Number(img.dataset.galleryImage));if(p)openProfile(p);}));
+  document.querySelectorAll('[data-gallery-prev],[data-gallery-next]').forEach(btn=>btn.addEventListener('click',()=>{const id=Number(btn.dataset.galleryPrev||btn.dataset.galleryNext),p=data.find(x=>x.id===id);if(!p||!p.images||!p.images.length)return;const img=document.querySelector('[data-gallery-image="'+id+'"]');if(!img)return;let n=Number(img.dataset.index)||0;n=(n+(btn.hasAttribute('data-gallery-next')?1:-1)+p.images.length)%p.images.length;img.src=p.images[n].url;img.dataset.index=String(n);const count=document.querySelector('[data-gallery-count="'+id+'"]');if(count)count.textContent=(n+1)+' / '+p.images.length;}));
   document.querySelectorAll('[data-book]').forEach(b => {
     b.addEventListener('click', () => {
       openModal('booking', data.find(p => p.id === Number(b.dataset.book)));
@@ -472,6 +476,7 @@ async function loadProviders() {
 
   return {
     id: Number(p.id),
+    images: (p.images || []).slice(0,5).map(img => ({id:Number(img.id),url:'https://kerala-marketplace-api-v2.abmg-events.workers.dev'+img.url})),
     name: p.business_name || 'Local provider',
     category,
     service: p.category_name || 'Local service',
@@ -524,6 +529,7 @@ function openProfile(p) {
       <div><h2 id="profileName">${esc(p.name)}</h2><p>${esc(p.service)} · ${esc(place)}</p></div>
     </div>
     <div class="profile-content">
+      ${p.images && p.images.length ? `<div class="profile-gallery">${p.images.map((img,i)=>`<img src="${img.url}" alt="${esc(p.name)} photo ${i+1}" data-profile-image="${i}">`).join("")}</div>` : ""}
       <div class="profile-details">
         <div class="profile-detail"><small>EXPERIENCE</small><strong>${p.years} year${p.years === 1 ? '' : 's'}</strong></div>
         <div class="profile-detail"><small>CUSTOMER RATING</small><strong>${rating}</strong></div>
@@ -546,6 +552,7 @@ function openProfile(p) {
     </div>`;
   $('profileBg').classList.add('open');
   document.body.style.overflow = 'hidden';
+  document.querySelectorAll('[data-profile-image]').forEach(img=>img.addEventListener('click',()=>{const images=p.images||[];if(images.length){const n=(Number(img.dataset.profileImage)+1)%images.length;img.src=images[n].url;img.dataset.profileImage=String(n);}}));
   $('profileDismiss').addEventListener('click', closeProfile);
   $('profileBook').addEventListener('click', () => {
     closeProfile();
