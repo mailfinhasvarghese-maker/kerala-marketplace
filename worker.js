@@ -324,6 +324,56 @@ export default {
         await env.DB.prepare("INSERT INTO staff_access (account_id,job_role_id,is_main_admin) VALUES (?,NULL,1)").bind(account.meta.last_row_id).run();
         return respond({ok:true,message:"Main admin created. Sign in using these account credentials."},201);
       }
+      const sessionAccount = await getAccount(request,env.DB);
+      const sessionPermissions = (()=>{try{return JSON.parse(sessionAccount?.permissions_json||"[]")}catch{return []}})();
+      const isMainAdmin = !!sessionAccount && sessionAccount.role==="admin" && Number(sessionAccount.is_main_admin)===1;
+      const canManageCategories = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_categories"));
+      const canManageRoles = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_roles"));
+      const canManageStaff = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_staff"));
+      if (path === "/api/admin/categories" && request.method === "GET") {
+        if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
+        const result=await env.DB.prepare("SELECT id,name,slug,description,icon,active,sort_order FROM categories ORDER BY sort_order,name").all();
+        return respond({categories:result.results||[]});
+      }
+      if (path === "/api/admin/categories" && request.method === "POST") {
+        if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
+        const body=await request.json();
+        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"🧰").trim().slice(0,12), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100;
+        const slug=String(body.slug||name).trim().toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
+        if(!name||!slug)return respond({error:"Category name is required."},400);
+        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,slug=?,description=?,icon=?,active=?,sort_order=? WHERE id=?").bind(name,slug,description,icon,active,sortOrder,id).run(); else await env.DB.prepare("INSERT INTO categories (name,slug,description,icon,active,sort_order) VALUES (?,?,?,?,?,?)").bind(name,slug,description,icon,active,sortOrder).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
+      }
+      if (path === "/api/admin/job-roles" && request.method === "GET") {
+        if(!canManageRoles)return respond({error:"You do not have permission to manage job roles."},403);
+        const result=await env.DB.prepare("SELECT id,name,description,permissions_json,created_at FROM job_roles ORDER BY name").all();
+        return respond({roles:(result.results||[]).map(x=>({...x,permissions:(()=>{try{return JSON.parse(x.permissions_json)}catch{return []}})()}))});
+      }
+      if (path === "/api/admin/job-roles" && request.method === "POST") {
+        if(!canManageRoles)return respond({error:"You do not have permission to manage job roles."},403);
+        const body=await request.json(), name=String(body.name||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300);
+        const allowed=["manage_categories","manage_roles","manage_staff","review_providers","moderate_reviews","view_bookings"];
+        const permissions=Array.isArray(body.permissions)?[...new Set(body.permissions.filter(x=>allowed.includes(x)))]:[];
+        if(!name)return respond({error:"Job role name is required."},400);
+        try { await env.DB.prepare("INSERT INTO job_roles (name,description,permissions_json) VALUES (?,?,?)").bind(name,description,JSON.stringify(permissions)).run(); return respond({ok:true,message:"Job role created."},201); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"A job role with that name already exists."},409); throw error; }
+      }
+      if (path === "/api/admin/staff" && request.method === "POST") {
+        if(!canManageStaff)return respond({error:"You do not have permission to manage staff accounts."},403);
+        const body=await request.json(), email=String(body.email||"").trim().toLowerCase(), displayName=String(body.display_name||"").trim().slice(0,100), password=String(body.password||""), roleId=Number.parseInt(body.job_role_id,10);
+        if(!email.includes("@")||!displayName||password.length<10||password.length>200||!Number.isInteger(roleId))return respond({error:"Enter a valid email, name, password of 10+ characters and job role."},400);
+        if(await env.DB.prepare("SELECT id FROM user_accounts WHERE email=?").bind(email).first())return respond({error:"An account with this email already exists."},409);
+        if(!await env.DB.prepare("SELECT id FROM job_roles WHERE id=?").bind(roleId).first())return respond({error:"Choose an existing job role."},400);
+        const salt=randomToken(), digest=await derivePassword(password,salt);
+        const account=await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role) VALUES (?,?,?,?,?)").bind(email,displayName,salt,digest,"customer").run();
+        await env.DB.prepare("INSERT INTO staff_access (account_id,job_role_id,is_main_admin) VALUES (?,?,0)").bind(account.meta.last_row_id,roleId).run();
+        return respond({ok:true,message:"Staff account created."},201);
+      }
+      if (path === "/api/admin/job-roles" && request.method === "PATCH") {
+        if(!canManageRoles)return respond({error:"You do not have permission to manage job roles."},403);
+        const body=await request.json(), id=Number.parseInt(body.id,10), name=String(body.name||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), allowed=["manage_categories","manage_roles","manage_staff","review_providers","moderate_reviews","view_bookings"], permissions=Array.isArray(body.permissions)?[...new Set(body.permissions.filter(x=>allowed.includes(x)))]:[];
+        if(!Number.isInteger(id)||id<1||!name)return respond({error:"Role ID and name are required."},400);
+        await env.DB.prepare("UPDATE job_roles SET name=?,description=?,permissions_json=? WHERE id=?").bind(name,description,JSON.stringify(permissions),id).run();
+        return respond({ok:true,message:"Job role updated."});
+      }
       if (path === "/api/providers" && request.method === "GET") {
         const conditions = ["p.status = 'active'"];
         const values = [];
