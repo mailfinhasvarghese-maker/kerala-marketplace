@@ -148,6 +148,50 @@ export default {
         const result = await env.DB.prepare("SELECT b.id,b.provider_id,p.business_name,b.service_date,b.service_location,b.details,b.status,b.created_at,b.provider_quote,b.provider_quote_note,b.customer_counter_offer,b.customer_counter_note,CASE WHEN r.id IS NULL THEN 0 ELSE 1 END AS has_review FROM booking_requests b JOIN providers p ON p.id=b.provider_id LEFT JOIN customer_reviews r ON r.booking_request_id=b.id WHERE b.customer_account_id=? ORDER BY b.created_at DESC LIMIT 200").bind(account.id).all();
         return respond({bookings:result.results||[]});
       }
+      // Provider-owned profile: retrieve and edit public business details and map pin.
+      if (path === "/api/provider/profile" && request.method === "GET") {
+        const account = await getAccount(request, env.DB);
+        if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const profile = await env.DB.prepare(
+          "SELECT p.id,p.business_name,p.contact_name,p.phone,p.email,p.district,p.town,p.address,p.description,p.years_experience,p.latitude,p.longitude,p.status,c.name AS category_name,c.slug AS category_slug FROM providers p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?"
+        ).bind(account.provider_id).first();
+        if (!profile) return respond({error:"Provider profile not found."},404);
+        return respond({profile});
+      }
+
+      if (path === "/api/provider/profile" && request.method === "POST") {
+        const account = await getAccount(request, env.DB);
+        if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const body = await request.json();
+        const businessName = String(body.business_name||"").trim().slice(0,160);
+        const contactName = String(body.contact_name||"").trim().slice(0,100);
+        const phone = String(body.phone||"").trim().slice(0,60);
+        const email = String(body.email||"").trim().toLowerCase().slice(0,200);
+        const district = String(body.district||"").trim().slice(0,100);
+        const town = String(body.town||"").trim().slice(0,120);
+        const address = String(body.address||"").trim().slice(0,300);
+        const description = String(body.description||"").trim().slice(0,2000);
+        const years = Number.parseInt(body.years_experience,10);
+        const lat = body.latitude === "" || body.latitude === null || body.latitude === undefined ? null : Number(body.latitude);
+        const lng = body.longitude === "" || body.longitude === null || body.longitude === undefined ? null : Number(body.longitude);
+        if (!businessName || !contactName || !phone || !district) return respond({error:"Business name, contact name, phone and district are required."},400);
+        if ((lat !== null && (!Number.isFinite(lat)||lat < -90||lat > 90)) || (lng !== null && (!Number.isFinite(lng)||lng < -180||lng > 180)) || ((lat === null) !== (lng === null))) return respond({error:"Choose a valid map location, or clear both coordinates."},400);
+        let categoryId = null;
+        const category = String(body.category||"").trim();
+        const aliases = {"taxi":"taxi-transportation","rentals":"item-equipment-rentals","workers":"labour-skilled-workers","home services":"home-business-services"};
+        const categoryValue = aliases[category.toLowerCase()] || category;
+        if (categoryValue) {
+          const row = await env.DB.prepare("SELECT id FROM categories WHERE LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?) LIMIT 1").bind(categoryValue,categoryValue).first();
+          if (row) categoryId = row.id;
+        }
+        const current = await env.DB.prepare("SELECT status FROM providers WHERE id=?").bind(account.provider_id).first();
+        if (!current) return respond({error:"Provider profile not found."},404);
+        await env.DB.prepare(
+          "UPDATE providers SET business_name=?,contact_name=?,phone=?,email=?,district=?,town=?,address=?,description=?,years_experience=?,category_id=?,latitude=?,longitude=? WHERE id=?"
+        ).bind(businessName,contactName,phone,email||null,district,town||null,address||null,description||null,Number.isFinite(years)?Math.max(0,Math.min(80,years)):0,categoryId,lat,lng,account.provider_id).run();
+        return respond({ok:true,message:"Provider profile saved. Public map and search details are updated.",status:current.status});
+      }
+
       if (path === "/api/provider/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
