@@ -21,6 +21,7 @@ async function derivePassword(password, salt) {
   return tokenText(new Uint8Array(bits));
 }
 async function ensureSchema(db) {
+  await db.prepare("CREATE TABLE IF NOT EXISTS provider_images (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, object_key TEXT NOT NULL UNIQUE, content_type TEXT NOT NULL DEFAULT 'image/jpeg', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
@@ -192,6 +193,46 @@ export default {
         return respond({ok:true,message:"Provider profile saved. Public map and search details are updated.",status:current.status});
       }
 
+      if (path === "/api/provider/images" && request.method === "GET") {
+        const account = await getAccount(request, env.DB);
+        if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const rows = await env.DB.prepare("SELECT id, created_at FROM provider_images WHERE provider_id=? ORDER BY id").bind(account.provider_id).all();
+        return respond({images:(rows.results||[]).map(x=>({id:x.id,url:"/api/provider-image?id="+x.id,created_at:x.created_at}))});
+      }
+
+      if (path === "/api/provider/images" && request.method === "POST") {
+        const account = await getAccount(request, env.DB);
+        if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        if (!env.IMAGES) return respond({error:"Image storage is not configured. Please contact support."},503);
+        const body = await request.json();
+        const images = Array.isArray(body.images) ? body.images : [];
+        if (images.length > 5) return respond({error:"You can upload up to 5 photos."},400);
+        const prepared = [];
+        for (const item of images) {
+          const value = String(item && item.data_url || "");
+          const match = value.match(/^data:image\/(?:jpeg|jpg|png|webp|gif|bmp|avif);base64,([A-Za-z0-9+/=]+)$/i);
+          if (!match) return respond({error:"Each photo must be an image converted to JPEG before upload."},400);
+          const binary = atob(match[1]);
+          if (binary.length > 200 * 1024) return respond({error:"Each compressed photo must be 200 KB or smaller."},400);
+          const bytes = new Uint8Array(binary.length);
+          for (let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+          prepared.push(bytes);
+        }
+        const oldRows = await env.DB.prepare("SELECT id, object_key FROM provider_images WHERE provider_id=?").bind(account.provider_id).all();
+        for (const old of (oldRows.results||[])) {
+          await env.IMAGES.delete(old.object_key);
+        }
+        await env.DB.prepare("DELETE FROM provider_images WHERE provider_id=?").bind(account.provider_id).run();
+        const saved = [];
+        for (const bytes of prepared) {
+          const key = "providers/" + account.provider_id + "/" + crypto.randomUUID() + ".jpg";
+          await env.IMAGES.put(key, bytes, {httpMetadata:{contentType:"image/jpeg"}});
+          const row = await env.DB.prepare("INSERT INTO provider_images (provider_id,object_key,content_type) VALUES (?,?,'image/jpeg')").bind(account.provider_id,key).run();
+          saved.push({id:row.meta.last_row_id,url:"/api/provider-image?id="+row.meta.last_row_id});
+        }
+        return respond({ok:true,message:"Provider photos saved.",images:saved});
+      }
+
       if (path === "/api/provider/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
@@ -243,6 +284,24 @@ export default {
       }
 
       // List and search active providers
+      if (path === "/api/provider-image" && request.method === "GET") {
+        const imageId = Number.parseInt(url.searchParams.get("id"), 10);
+        if (!Number.isInteger(imageId) || imageId < 1 || !env.IMAGES) {
+          return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
+        }
+        const imageRow = await env.DB.prepare(
+          "SELECT i.object_key, i.content_type FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=? AND p.status='active'"
+        ).bind(imageId).first();
+        if (!imageRow) return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
+        const object = await env.IMAGES.get(imageRow.object_key);
+        if (!object) return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
+        return new Response(object.body, { status: 200, headers: {
+          "Content-Type": imageRow.content_type || "image/jpeg",
+          "Cache-Control": "public, max-age=86400",
+          "X-Content-Type-Options": "nosniff"
+        }});
+      }
+
       if (path === "/api/providers" && request.method === "GET") {
         const conditions = ["p.status = 'active'"];
         const values = [];
@@ -301,9 +360,21 @@ export default {
           .bind(...values)
           .all();
 
-        return respond({
-          providers: result.results || []
-        });
+        const providers = result.results || [];
+        if (providers.length) {
+          const ids = providers.map(p => p.id);
+          const placeholders = ids.map(() => "?").join(",");
+          const imageRows = await env.DB.prepare(
+            "SELECT id, provider_id FROM provider_images WHERE provider_id IN (" + placeholders + ") ORDER BY id"
+          ).bind(...ids).all();
+          const byProvider = new Map();
+          for (const image of (imageRows.results || [])) {
+            if (!byProvider.has(image.provider_id)) byProvider.set(image.provider_id, []);
+            byProvider.get(image.provider_id).push({ id: image.id, url: "/api/provider-image?id=" + image.id });
+          }
+          for (const provider of providers) provider.images = byProvider.get(provider.id) || [];
+        }
+        return respond({ providers });
       }
 
       // Register a provider for manual review
