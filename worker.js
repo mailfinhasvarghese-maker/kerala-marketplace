@@ -299,11 +299,13 @@ export default {
         const imagePermissions = (()=>{try{return JSON.parse(imageAccount?.permissions_json||"[]")}catch{return []}})();
         const imageCanReview = !!imageAccount && ((imageAccount.role==="admin" && Number(imageAccount.is_main_admin)===1) || (imageAccount.role==="staff" && imagePermissions.includes("review_providers")));
         const imageRow = await env.DB.prepare(
-          imageCanReview
-            ? "SELECT i.object_key, i.content_type FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=?"
-            : "SELECT i.object_key, i.content_type FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=? AND p.status='active'"
+          "SELECT i.object_key, i.content_type, i.provider_id, p.status FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=?"
         ).bind(imageId).first();
-        if (!imageRow) return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
+        const isOwner = !!imageAccount && imageAccount.role==="provider" && Number(imageAccount.provider_id)===Number(imageRow?.provider_id);
+        const isPublic = String(imageRow?.status||"").toLowerCase()==="active";
+        if (!imageRow || (!imageCanReview && !isOwner && !isPublic)) {
+          return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
+        }
         const object = await env.IMAGES.get(imageRow.object_key);
         if (!object) return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
         return new Response(object.body, { status: 200, headers: {
