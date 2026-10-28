@@ -202,8 +202,17 @@ export default {
       if (path === "/api/provider/images" && request.method === "GET") {
         const account = await getAccount(request, env.DB);
         if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
-        const rows = await env.DB.prepare("SELECT id, created_at FROM provider_images WHERE provider_id=? ORDER BY id").bind(account.provider_id).all();
-        return respond({images:(rows.results||[]).map(x=>({id:x.id,url:"/api/provider-image?id="+x.id,created_at:x.created_at}))});
+        const rows = await env.DB.prepare("SELECT id, object_key, content_type, created_at FROM provider_images WHERE provider_id=? ORDER BY id").bind(account.provider_id).all();
+        const images = [];
+        for (const row of (rows.results||[])) {
+          const object = await env.IMAGES?.get(row.object_key);
+          if (!object) { images.push({id:row.id,url:"/api/provider-image?id="+row.id,created_at:row.created_at,available:false}); continue; }
+          const bytes = new Uint8Array(await object.arrayBuffer());
+          let binary = "";
+          for (let i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+          images.push({id:row.id,url:"/api/provider-image?id="+row.id,data_url:"data:"+(row.content_type||"image/jpeg")+";base64,"+btoa(binary),created_at:row.created_at,available:true});
+        }
+        return respond({images});
       }
 
       if (path === "/api/provider/images" && request.method === "POST") {
@@ -377,9 +386,15 @@ export default {
         const providers=result.results||[];
         if(providers.length){
           const ids=providers.map(p=>p.id), placeholders=ids.map(()=>"?").join(",");
-          const images=await env.DB.prepare("SELECT id,provider_id,created_at FROM provider_images WHERE provider_id IN ("+placeholders+") ORDER BY id").bind(...ids).all();
+          const images=await env.DB.prepare("SELECT id,provider_id,object_key,content_type,created_at FROM provider_images WHERE provider_id IN ("+placeholders+") ORDER BY id").bind(...ids).all();
           const grouped=new Map();
-          for(const image of (images.results||[])){if(!grouped.has(image.provider_id))grouped.set(image.provider_id,[]);grouped.get(image.provider_id).push({id:image.id,url:"/api/provider-image?id="+image.id,created_at:image.created_at});}
+          for(const image of (images.results||[])){
+            if(!grouped.has(image.provider_id))grouped.set(image.provider_id,[]);
+            const object=await env.IMAGES?.get(image.object_key);
+            let dataUrl=null;
+            if(object){const bytes=new Uint8Array(await object.arrayBuffer());let binary="";for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);dataUrl="data:"+(image.content_type||"image/jpeg")+";base64,"+btoa(binary);}
+            grouped.get(image.provider_id).push({id:image.id,url:"/api/provider-image?id="+image.id,data_url:dataUrl,created_at:image.created_at,available:!!object});
+          }
           for(const provider of providers)provider.images=grouped.get(provider.id)||[];
         }else{}
         return respond({providers});
