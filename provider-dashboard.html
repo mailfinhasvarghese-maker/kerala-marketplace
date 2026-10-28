@@ -18,6 +18,7 @@
 <div>
 <section class="stats"><div class="stat"><span>All requests</span><strong id="totalCount">—</strong></div><div class="stat"><span>Needs response</span><strong id="pendingCount">—</strong></div><div class="stat"><span>Accepted / active</span><strong id="activeCount">—</strong></div></section>
 <section class="panel" id="bookings"><div class="section-head"><div><h2>Customer bookings</h2><p>Booking details and next actions appear below.</p></div><span class="eyebrow" id="lastUpdated"></span></div><div id="bookingList" class="loading">Loading bookings…</div></section>
+<section class="panel" id="profile" style="margin-top:18px"><div class="section-head"><div><h2>Public provider profile</h2><p>Edit your service details and map location. Active profiles update on the public marketplace after saving.</p></div><button class="btn soft" type="button" id="profileGps">Use device GPS</button></div><form id="profileForm"><div class="settings-grid"><div class="field"><label for="pfBusiness">Business / service name *</label><input id="pfBusiness" name="business_name" required maxlength="160"></div><div class="field"><label for="pfContact">Contact person *</label><input id="pfContact" name="contact_name" required maxlength="100"></div><div class="field"><label for="pfPhone">Phone *</label><input id="pfPhone" name="phone" required maxlength="60"></div><div class="field"><label for="pfEmail">Public contact email</label><input id="pfEmail" name="email" type="email" maxlength="200"></div><div class="field"><label for="pfCategory">Service category *</label><select id="pfCategory" name="category" required><option value="">Choose category</option><option value="taxi-transportation">Taxi & travel</option><option value="item-equipment-rentals">Rentals</option><option value="labour-skilled-workers">Skilled workers</option><option value="home-business-services">Home services</option><option value="Events">Event services</option></select></div><div class="field"><label for="pfDistrict">District *</label><input id="pfDistrict" name="district" required maxlength="100" placeholder="e.g. Ernakulam"></div><div class="field"><label for="pfTown">Town / locality</label><input id="pfTown" name="town" maxlength="120" placeholder="e.g. Aluva"></div><div class="field"><label for="pfYears">Years of experience</label><input id="pfYears" name="years_experience" type="number" min="0" max="80" value="0"></div><div class="field" style="grid-column:1/-1"><label for="pfAddress">Full service address / landmark</label><input id="pfAddress" name="address" maxlength="300" placeholder="House, street, town or landmark"></div><div class="field" style="grid-column:1/-1"><label for="pfDescription">Services and description</label><textarea id="pfDescription" name="description" rows="3" maxlength="2000"></textarea></div><div class="field"><label for="pfLatitude">Map latitude</label><input id="pfLatitude" name="latitude" type="number" step="any" min="-90" max="90" placeholder="Use GPS or enter latitude"></div><div class="field"><label for="pfLongitude">Map longitude</label><input id="pfLongitude" name="longitude" type="number" step="any" min="-180" max="180" placeholder="Use GPS or enter longitude"></div></div><p class="muted" id="profileLocationNote">Set the map pin at the place where your service is based. Customers can use this to find your service. Your device may ask permission for location access.</p><div class="actions"><button class="btn primary" id="saveProfile" type="submit">Save provider details</button><button class="btn outline" type="button" id="clearProfilePin">Clear map pin</button></div><p class="muted" id="profileSaveStatus" aria-live="polite"></p></form></section>
 <section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account type</label><p>Provider</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div></section>
 </div></div></main><footer><div class="wrap">Nattukaar · Kerala Local Marketplace</div></footer>
 <script>
@@ -39,9 +40,36 @@ async function init(){
   $('accountEmail').textContent=account.email;
   $('profileSummary').textContent='Provider account ID: '+(account.provider_id||'Not linked');
   $('settingName').textContent=name;$('settingEmail').textContent=account.email;
+  await loadProfile();
   await loadBookings();
  }catch(e){showError(e.message);if(/sign in/i.test(e.message)){localStorage.removeItem('nattukaar_token');location.href='/';}}
 }
+async function loadProfile(){
+ const form=$('profileForm'); if(!form)return;
+ $('profileSaveStatus').textContent='Loading provider profile…';
+ try{
+  const data=await jsonFetch('/api/provider/profile');const p=data.profile||{};
+  const fields={business_name:p.business_name,contact_name:p.contact_name,phone:p.phone,email:p.email,category:p.category_slug||'',district:p.district,town:p.town,address:p.address,description:p.description,years_experience:p.years_experience??0,latitude:p.latitude,longitude:p.longitude};
+  for(const [name,value] of Object.entries(fields)){if(form.elements[name])form.elements[name].value=value??'';}
+  $('profileSaveStatus').textContent=p.status==='active'?'Your profile is public. Changes are saved to your live listing and map.':'Your profile is '+(p.status||'pending')+'. Details are saved, but the public listing appears after activation.';
+  $('profileSummary').textContent='Provider ID: '+p.id+' · Status: '+(p.status||'unknown')+' · '+(p.town||p.district||'Location not set');
+ }catch(e){$('profileSaveStatus').textContent=e.message;}
+}
+$('profileForm').addEventListener('submit',async e=>{
+ e.preventDefault();const form=e.currentTarget;const btn=$('saveProfile');btn.disabled=true;$('profileSaveStatus').textContent='Saving…';
+ try{
+  const data=Object.fromEntries(new FormData(form).entries());
+  const result=await jsonFetch('/api/provider/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  $('profileSaveStatus').textContent=result.message+(result.status==='active'?' Your public listing is updated.':' Your listing remains '+result.status+' until activated.');
+  await loadProfile();
+ }catch(err){$('profileSaveStatus').textContent=err.message;}finally{btn.disabled=false;}
+});
+$('profileGps').addEventListener('click',()=>{
+ if(!navigator.geolocation){$('profileSaveStatus').textContent='This browser does not support GPS location.';return;}
+ $('profileSaveStatus').textContent='Requesting location permission…';
+ navigator.geolocation.getCurrentPosition(pos=>{$('pfLatitude').value=pos.coords.latitude.toFixed(7);$('pfLongitude').value=pos.coords.longitude.toFixed(7);$('profileSaveStatus').textContent='Location captured. Click Save provider details to publish it.';},err=>{$('profileSaveStatus').textContent=err.message||'Could not get location. Enter latitude and longitude manually.';},{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+});
+$('clearProfilePin').addEventListener('click',()=>{$('pfLatitude').value='';$('pfLongitude').value='';$('profileSaveStatus').textContent='Map pin cleared. Save provider details to remove it from the map.';});
 async function loadBookings(){
  $('bookingList').className='loading';$('bookingList').textContent='Loading bookings…';
  try{const d=await jsonFetch('/api/provider/bookings');bookings=d.bookings||[];
