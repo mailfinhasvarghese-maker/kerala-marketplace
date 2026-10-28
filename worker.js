@@ -308,6 +308,22 @@ export default {
         }});
       }
 
+      if (path === "/api/categories" && request.method === "GET") {
+        const result = await env.DB.prepare("SELECT id,name,slug,description,icon,sort_order FROM categories WHERE active=1 ORDER BY sort_order,name").all();
+        return respond({categories:result.results||[]});
+      }
+      if (path === "/api/admin/bootstrap" && request.method === "POST") {
+        if (!env.ADMIN_API_KEY || request.headers.get("Authorization") !== "Bearer "+env.ADMIN_API_KEY) return respond({error:"Unauthorized."},401);
+        if (await env.DB.prepare("SELECT account_id FROM staff_access WHERE is_main_admin=1 LIMIT 1").first()) return respond({error:"Main admin already exists."},409);
+        const body=await request.json();
+        const email=String(body.email||"").trim().toLowerCase(), displayName=String(body.display_name||"").trim().slice(0,100), password=String(body.password||"");
+        if(!email.includes("@")||!displayName||password.length<10||password.length>200) return respond({error:"Enter a valid email, name and password of at least 10 characters."},400);
+        if(await env.DB.prepare("SELECT id FROM user_accounts WHERE email=?").bind(email).first()) return respond({error:"That email already belongs to an account. Use another email."},409);
+        const salt=randomToken(), digest=await derivePassword(password,salt);
+        const account=await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role) VALUES (?,?,?,?,?)").bind(email,displayName,salt,digest,"customer").run();
+        await env.DB.prepare("INSERT INTO staff_access (account_id,job_role_id,is_main_admin) VALUES (?,NULL,1)").bind(account.meta.last_row_id).run();
+        return respond({ok:true,message:"Main admin created. Sign in using these account credentials."},201);
+      }
       if (path === "/api/providers" && request.method === "GET") {
         const conditions = ["p.status = 'active'"];
         const values = [];
