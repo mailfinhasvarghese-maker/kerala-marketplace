@@ -339,6 +339,34 @@ h1 em{font-style:normal;color:var(--g)}
  .providers.section{padding:24px 0}
 }
 
+
+/* Light map + provider card explorer */
+#mapPanel{padding:12px;background:#fff;border:1px solid #e3eae5;border-radius:18px;box-shadow:0 6px 22px rgba(27,55,40,.055);margin:0}
+.map-tools{padding:2px 2px 12px;margin-bottom:0;border-bottom:1px solid #edf1ee}
+.map-tools strong{font-size:14px;color:#17231d}
+.map-note{margin-top:4px;line-height:1.5}
+.map-explorer{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(260px,1fr);gap:12px;padding-top:12px;align-items:stretch}
+#providerMap{height:390px;min-height:390px;border:1px solid #e7ede8;border-radius:13px;overflow:hidden;z-index:1;background:#f4f7f4}
+#providerMap .leaflet-tile{filter:saturate(.72) brightness(1.035) contrast(.97)}
+.map-provider-panel{min-width:0;max-height:390px;display:flex;flex-direction:column;border:1px solid #e6ece7;border-radius:13px;background:#fbfcfb;overflow:hidden}
+.map-provider-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 13px 11px;border-bottom:1px solid #e8eee9;background:#fff}
+.map-provider-heading strong{font-size:12px;color:#17231d}
+#mapProviderCount{flex:0 0 auto;padding:4px 7px;border-radius:99px;background:#eaf5ee;color:#176b4d;font-size:10px;font-weight:800}
+.map-provider-cards{display:flex;flex-direction:column;gap:8px;padding:10px;overflow-y:auto}
+.map-provider-card{display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;padding:11px;background:#fff;border:1px solid #e6ece7;border-radius:11px;transition:border-color .15s,box-shadow .15s}
+.map-provider-card:hover{border-color:#a9cbb6;box-shadow:0 3px 10px rgba(23,55,37,.05)}
+.map-provider-avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#edf6ef;color:#176b4d;font-size:18px}
+.map-provider-info{min-width:0}
+.map-provider-name{font-size:12px;font-weight:800;color:#17231d;overflow-wrap:anywhere}
+.map-provider-service{font-size:11px;color:#176b4d;font-weight:650;margin-top:3px}
+.map-provider-location{font-size:10px;color:#718078;margin-top:4px;line-height:1.4}
+.map-provider-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.map-provider-actions button{border:1px solid #dce8df;background:#f6faf7;color:#176b4d;border-radius:7px;padding:6px 8px;font-size:10px;font-weight:750;cursor:pointer}
+.map-provider-actions button:hover{background:#e8f5ed}
+.map-empty{padding:16px 12px;color:#77847c;font-size:12px;line-height:1.6}
+@media(max-width:820px){.map-explorer{grid-template-columns:1fr}.map-provider-panel{max-height:none}.map-provider-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:250px}#providerMap{height:350px;min-height:350px}}
+@media(max-width:540px){#mapPanel{padding:8px}.map-explorer{gap:9px}#providerMap{height:300px;min-height:300px}.map-provider-cards{grid-template-columns:1fr;max-height:280px}.map-tools{align-items:flex-start}.location-row{width:100%}.location-row .btn{flex:1}}
+
 </style>
 </head>
 
@@ -425,7 +453,7 @@ h1 em{font-style:normal;color:var(--g)}
     </div>
   </div>
 </section>
-<section class="map-section" aria-label="Map of local service providers"><div class="wrap"><div id="mapPanel"><div class="map-tools"><div><strong>Providers near you</strong><div class="map-note" id="mapStatus">Allow location to sort providers by distance, or search by district.</div></div><div class="location-row"><button class="btn light" type="button" id="useMyLocation">Use my current location</button><button class="btn outline" type="button" id="clearLocation">Clear location</button></div></div><div id="providerMap" role="application" aria-label="Map showing service providers"></div></div></div></section>
+<section class="map-section" aria-label="Map of local service providers"><div class="wrap"><div id="mapPanel"><div class="map-tools"><div><strong>Providers near you</strong><div class="map-note" id="mapStatus">Allow location to sort providers by distance, or search by district.</div></div><div class="location-row"><button class="btn light" type="button" id="useMyLocation">Use my current location</button><button class="btn outline" type="button" id="clearLocation">Clear location</button></div></div><div class="map-explorer"><div id="providerMap" role="application" aria-label="Map showing service providers"></div><aside class="map-provider-panel" aria-label="Providers shown on map"><div class="map-provider-heading"><strong>Providers on the map</strong><span id="mapProviderCount">Loading</span></div><div id="mapProviderCards" class="map-provider-cards"><div class="map-empty">Loading local providers…</div></div></aside></div></div></div></section>
 
 
 <section class="section providers" id="providers">
@@ -544,7 +572,52 @@ async function loadCategories(){
 }
 function distanceKm(a,b){const rad=x=>x*Math.PI/180;const dLat=rad(b.lat-a.lat),dLon=rad(b.lng-a.lng);const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
 function initProviderMap(){if(mapReady||!window.L)return;providerMap=L.map("providerMap").setView([10.35,76.25],7);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(providerMap);providerMarkers=L.layerGroup().addTo(providerMap);mapReady=true;renderMap();}
-function renderMap(){if(!mapReady)return;providerMarkers.clearLayers();const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase()===l.toLowerCase()||(p.town||"").toLowerCase()===l.toLowerCase())&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k)));const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));located.forEach(p=>{const popup=document.createElement("div");popup.innerHTML="<strong>"+esc(p.name)+"</strong><br>"+esc(p.service)+"<br>"+esc([p.town,p.location].filter(Boolean).join(", "));if(Number.isFinite(p.distanceKm))popup.innerHTML+="<br>"+p.distanceKm.toFixed(1)+" km away";const btn=document.createElement("button");btn.type="button";btn.textContent="View profile";btn.onclick=()=>window.nattukaarProfile(p.id);popup.appendChild(document.createElement("br"));popup.appendChild(btn);providerMarkers.addLayer(L.marker([p.latitude,p.longitude]).bindPopup(popup));});if(customerLocation){providerMarkers.addLayer(L.circleMarker([customerLocation.lat,customerLocation.lng],{radius:8,color:"#176b4d",fillColor:"#32a66b",fillOpacity:.9}).bindPopup("Your current location"));}if(located.length&&customerLocation){providerMap.fitBounds([[customerLocation.lat,customerLocation.lng],...located.map(p=>[p.latitude,p.longitude])],{padding:[25,25],maxZoom:13});}else if(located.length){providerMap.fitBounds(located.map(p=>[p.latitude,p.longitude]),{padding:[25,25],maxZoom:12});}else{providerMap.setView(customerLocation?[customerLocation.lat,customerLocation.lng]:[10.35,76.25],customerLocation?11:7);}document.getElementById("mapStatus").textContent=customerLocation?"Sorted by distance from your location. "+located.length+" provider(s) have map coordinates.":located.length+" provider(s) have map coordinates. Allow location for nearby sorting; district/town search works without it.";}
+function renderMap(){
+ if(!mapReady)return;
+ providerMarkers.clearLayers();
+ const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();
+ const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase()===l.toLowerCase()||(p.town||"").toLowerCase()===l.toLowerCase())&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k)));
+ const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
+ located.forEach(p=>{
+   const popup=document.createElement("div");
+   popup.innerHTML="<strong>"+esc(p.name)+"</strong><br>"+esc(p.service)+"<br>"+esc([p.town,p.location].filter(Boolean).join(", "));
+   if(Number.isFinite(p.distanceKm))popup.innerHTML+="<br>"+p.distanceKm.toFixed(1)+" km away";
+   const btn=document.createElement("button");btn.type="button";btn.textContent="View profile";btn.onclick=()=>window.nattukaarProfile(p.id);
+   popup.appendChild(document.createElement("br"));popup.appendChild(btn);
+   providerMarkers.addLayer(L.marker([p.latitude,p.longitude]).bindPopup(popup));
+ });
+ if(customerLocation){providerMarkers.addLayer(L.circleMarker([customerLocation.lat,customerLocation.lng],{radius:8,color:"#176b4d",fillColor:"#32a66b",fillOpacity:.9}).bindPopup("Your current location"));}
+ if(located.length&&customerLocation){providerMap.fitBounds([[customerLocation.lat,customerLocation.lng],...located.map(p=>[p.latitude,p.longitude])],{padding:[25,25],maxZoom:13});}
+ else if(located.length){providerMap.fitBounds(located.map(p=>[p.latitude,p.longitude]),{padding:[25,25],maxZoom:12});}
+ else{providerMap.setView(customerLocation?[customerLocation.lat,customerLocation.lng]:[10.35,76.25],customerLocation?11:7);}
+ const count=$("mapProviderCount"),cards=$("mapProviderCards");
+ if(count)count.textContent=matching.length+" found";
+ if(cards){
+   cards.innerHTML="";
+   const shown=matching.slice(0,8);
+   if(!shown.length){cards.innerHTML='<div class="map-empty">No providers match these filters yet. Try another service or location.</div>';}
+   shown.forEach(p=>{
+     const card=document.createElement("article");card.className="map-provider-card";
+     const avatar=document.createElement("div");avatar.className="map-provider-avatar";avatar.textContent=(p.name||"N").trim().charAt(0).toUpperCase();
+     const info=document.createElement("div");info.className="map-provider-info";
+     const name=document.createElement("div");name.className="map-provider-name";name.textContent=p.name||"Local provider";
+     const service=document.createElement("div");service.className="map-provider-service";service.textContent=p.service||p.category||"Service provider";
+     const location=document.createElement("div");location.className="map-provider-location";location.textContent=[p.town,p.location].filter(Boolean).join(", ")||(Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?"Location available":"Location not specified");
+     info.append(name,service,location);
+     const actions=document.createElement("div");actions.className="map-provider-actions";
+     const profile=document.createElement("button");profile.type="button";profile.textContent="View profile";profile.addEventListener("click",()=>window.nattukaarProfile(p.id));actions.appendChild(profile);
+     if(Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)){
+       const locate=document.createElement("button");locate.type="button";locate.textContent="Show on map";
+       locate.addEventListener("click",()=>{providerMap.setView([p.latitude,p.longitude],14);providerMarkers.eachLayer(layer=>{if(layer.getLatLng&&Math.abs(layer.getLatLng().lat-p.latitude)<0.000001&&Math.abs(layer.getLatLng().lng-p.longitude)<0.000001)layer.openPopup();});});
+       actions.appendChild(locate);
+     }
+     info.appendChild(actions);card.append(avatar,info);cards.appendChild(card);
+   });
+   if(matching.length>shown.length){const more=document.createElement("div");more.className="map-empty";more.textContent="Showing "+shown.length+" of "+matching.length+" matching providers. See the full provider list below.";cards.appendChild(more);}
+ }
+ const status=$("mapStatus");
+ if(status)status.textContent=customerLocation?"Sorted by distance from your location. "+located.length+" provider(s) have map coordinates.":located.length+" provider(s) have map coordinates. Allow location for nearby sorting; district/town search works without it.";
+}
 window.nattukaarProfile=function(id){const p=data.find(x=>x.id===Number(id));if(p)openProfile(p);};
 function requestCustomerLocation(){if(!navigator.geolocation){toast("This browser does not support location. Use the district filter instead.");return;}$("mapStatus").textContent="Requesting your location permission…";navigator.geolocation.getCurrentPosition(pos=>{customerLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};data.forEach(p=>{p.distanceKm=Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});render();renderMap();toast("Location enabled for this search.");},()=>{$("mapStatus").textContent="Location unavailable or permission denied. Search by district/town instead.";toast("Could not access location. You can still search by district or town.");},{enableHighAccuracy:true,timeout:10000,maximumAge:120000});}
 let mode = 'booking';
