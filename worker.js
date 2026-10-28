@@ -295,8 +295,13 @@ export default {
         if (!Number.isInteger(imageId) || imageId < 1 || !env.IMAGES) {
           return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
         }
+        const imageAccount = await getAccount(request, env.DB);
+        const imagePermissions = (()=>{try{return JSON.parse(imageAccount?.permissions_json||"[]")}catch{return []}})();
+        const imageCanReview = !!imageAccount && ((imageAccount.role==="admin" && Number(imageAccount.is_main_admin)===1) || (imageAccount.role==="staff" && imagePermissions.includes("review_providers")));
         const imageRow = await env.DB.prepare(
-          "SELECT i.object_key, i.content_type FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=? AND p.status='active'"
+          imageCanReview
+            ? "SELECT i.object_key, i.content_type FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=?"
+            : "SELECT i.object_key, i.content_type FROM provider_images i JOIN providers p ON p.id=i.provider_id WHERE i.id=? AND p.status='active'"
         ).bind(imageId).first();
         if (!imageRow) return new Response("Image not found.", { status: 404, headers: { "Cache-Control": "public, max-age=300" } });
         const object = await env.IMAGES.get(imageRow.object_key);
@@ -357,7 +362,15 @@ export default {
       if (path === "/api/admin/providers" && request.method === "GET") {
         if(!canReviewProviders)return respond({error:"You do not have permission to review provider applications."},403);
         const result=await env.DB.prepare("SELECT p.id,p.business_name,p.contact_name,p.phone,p.email,p.district,p.town,p.address,p.description,p.years_experience,p.category_id,p.latitude,p.longitude,p.status,p.created_at,c.name AS category_name FROM providers p LEFT JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC LIMIT 500").all();
-        return respond({providers:result.results||[]});
+        const providers=result.results||[];
+        if(providers.length){
+          const ids=providers.map(p=>p.id), placeholders=ids.map(()=>"?").join(",");
+          const images=await env.DB.prepare("SELECT id,provider_id,created_at FROM provider_images WHERE provider_id IN ("+placeholders+") ORDER BY id").bind(...ids).all();
+          const grouped=new Map();
+          for(const image of (images.results||[])){if(!grouped.has(image.provider_id))grouped.set(image.provider_id,[]);grouped.get(image.provider_id).push({id:image.id,url:"/api/provider-image?id="+image.id,created_at:image.created_at});}
+          for(const provider of providers)provider.images=grouped.get(provider.id)||[];
+        }else{}
+        return respond({providers});
       }
       if (path === "/api/admin/providers" && request.method === "PATCH") {
         if(!canReviewProviders)return respond({error:"You do not have permission to review provider applications."},403);
