@@ -32,12 +32,18 @@ async function ensureSchema(db) {
     for (const [name,type] of columns) if (!names.has(name)) await db.prepare("ALTER TABLE "+table+" ADD COLUMN "+name+" "+type).run();
   }
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_booking_unique ON customer_reviews(booking_request_id) WHERE booking_request_id IS NOT NULL").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS job_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, permissions_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS staff_access (account_id INTEGER PRIMARY KEY, job_role_id INTEGER, is_main_admin INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id), FOREIGN KEY(job_role_id) REFERENCES job_roles(id))").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT '🧰', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  const catInfo = await db.prepare("PRAGMA table_info(categories)").all();
+  const catCols = new Set((catInfo.results || []).map(x => x.name));
+  for (const [n,t] of [["description","TEXT"],["icon","TEXT DEFAULT '🧰'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
 }
 async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
-  return await db.prepare("SELECT a.id,a.email,a.display_name,a.role,a.provider_id FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
+  return await db.prepare("SELECT a.id,a.email,a.display_name,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
 }
 async function issueSession(accountId, db) {
   const token = randomToken();
