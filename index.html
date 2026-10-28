@@ -594,7 +594,7 @@ function openAuth(mode='login') {
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
 async function refreshAccount(){
   if(!authToken){currentAccount=null;updateAuthButtons();return;}
-  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;updateAuthButtons();if(currentAccount&&currentAccount.role==='provider'&&location.pathname!=='/provider-dashboard.html'){location.replace('/provider-dashboard.html');return;}}
+  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;updateAuthButtons();if(currentAccount&&currentAccount.role==='provider'&&location.pathname!=='/provider-dashboard.html'){location.replace('/provider-dashboard.html');return;}if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
   catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;updateAuthButtons();}
 }
 async function openAccount(){
