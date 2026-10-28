@@ -6,8 +6,10 @@
 <meta name="theme-color" content="#176b4d">
 <title>Nattukaar — Kerala Local Marketplace</title>
 <meta name="description" content="Discover local taxi providers, rentals, workers and service professionals across Kerala.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <style>
+#mapPanel{background:#fff;border:1px solid var(--line);border-radius:17px;padding:14px;margin:18px 0 22px}#providerMap{height:380px;border-radius:12px;z-index:1}.map-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.map-note{font-size:12px;color:var(--muted)}.location-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.location-row .btn{font-size:12px;padding:9px 12px}
 :root{--g:#176b4d;--gd:#104a36;--mint:#e8f5ee;--ink:#17231d;--muted:#68766e;--line:#e2e9e4;--paper:#f7faf8;--white:#fff;--shadow:0 14px 38px #183d2a12}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -268,7 +270,7 @@ h1 em{font-style:normal;color:var(--g)}
       </div>
       <button class="btn outline" id="clear">Clear filters ↺</button>
     </div>
-    <div class="grid" id="providerGrid" aria-live="polite"></div>
+    <div id="mapPanel"><div class="map-tools"><div><strong>Providers near you</strong><div class="map-note" id="mapStatus">Allow location to sort providers by distance, or search by district.</div></div><div class="location-row"><button class="btn light" type="button" id="useMyLocation">Use my current location</button><button class="btn outline" type="button" id="clearLocation">Clear location</button></div></div><div id="providerMap" role="application" aria-label="Map showing service providers"></div></div><div class="grid" id="providerGrid" aria-live="polite"></div>
   </div>
 </section>
 
@@ -355,6 +357,12 @@ h1 em{font-style:normal;color:var(--g)}
 <script>
 const data = [];
 const $ = id => document.getElementById(id);
+let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false;
+function distanceKm(a,b){const rad=x=>x*Math.PI/180;const dLat=rad(b.lat-a.lat),dLon=rad(b.lng-a.lng);const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
+function initProviderMap(){if(mapReady||!window.L)return;providerMap=L.map("providerMap").setView([10.35,76.25],7);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(providerMap);providerMarkers=L.layerGroup().addTo(providerMap);mapReady=true;renderMap();}
+function renderMap(){if(!mapReady)return;providerMarkers.clearLayers();const located=data.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));located.forEach(p=>{const popup=document.createElement("div");popup.innerHTML="<strong>"+esc(p.name)+"</strong><br>"+esc(p.service)+"<br>"+esc([p.town,p.location].filter(Boolean).join(", "));if(Number.isFinite(p.distanceKm))popup.innerHTML+="<br>"+p.distanceKm.toFixed(1)+" km away";const btn=document.createElement("button");btn.type="button";btn.textContent="View profile";btn.onclick=()=>window.nattukaarProfile(p.id);popup.appendChild(document.createElement("br"));popup.appendChild(btn);providerMarkers.addLayer(L.marker([p.latitude,p.longitude]).bindPopup(popup));});if(customerLocation){providerMarkers.addLayer(L.circleMarker([customerLocation.lat,customerLocation.lng],{radius:8,color:"#176b4d",fillColor:"#32a66b",fillOpacity:.9}).bindPopup("Your current location"));}if(located.length&&customerLocation){providerMap.fitBounds([[customerLocation.lat,customerLocation.lng],...located.map(p=>[p.latitude,p.longitude])],{padding:[25,25],maxZoom:13});}else if(located.length){providerMap.fitBounds(located.map(p=>[p.latitude,p.longitude]),{padding:[25,25],maxZoom:12});}else{providerMap.setView(customerLocation?[customerLocation.lat,customerLocation.lng]:[10.35,76.25],customerLocation?11:7);}document.getElementById("mapStatus").textContent=customerLocation?"Sorted by distance from your location. "+located.length+" provider(s) have map coordinates.":located.length+" provider(s) have map coordinates. Allow location for nearby sorting; district/town search works without it.";}
+window.nattukaarProfile=function(id){const p=data.find(x=>x.id===Number(id));if(p)openProfile(p);};
+function requestCustomerLocation(){if(!navigator.geolocation){toast("This browser does not support location. Use the district filter instead.");return;}$("mapStatus").textContent="Requesting your location permission…";navigator.geolocation.getCurrentPosition(pos=>{customerLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};data.forEach(p=>{p.distanceKm=Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});render();renderMap();toast("Location enabled for this search.");},()=>{$("mapStatus").textContent="Location unavailable or permission denied. Search by district/town instead.";toast("Could not access location. You can still search by district or town.");},{enableHighAccuracy:true,timeout:10000,maximumAge:120000});}
 let mode = 'booking';
 let selected = null;
 let authMode='login', currentAccount=null, authToken=localStorage.getItem('nattukaar_token')||'', pendingProvider=null;
@@ -376,13 +384,12 @@ function render() {
 
   const list = data.filter(p =>
     (c === 'all' || p.category === c) &&
-    (l === 'all' || p.location === l) &&
-    (!k || [p.name, p.category, p.service, p.location, p.desc, p.tags]
-      .join(' ').toLowerCase().includes(k))
-  );
+    (l === 'all' || p.location.toLowerCase() === l.toLowerCase() || (p.town||'').toLowerCase() === l.toLowerCase()) &&
+    (!k || [p.name, p.category, p.service, p.location, p.town, p.desc, p.tags].join(' ').toLowerCase().includes(k))
+  ).sort((a,b)=>customerLocation?(Number.isFinite(a.distanceKm)?a.distanceKm:Infinity)-(Number.isFinite(b.distanceKm)?b.distanceKm:Infinity):0);
 
-  $('summary').textContent =
-    list.length + ' active provider' + (list.length === 1 ? '' : 's') + ' found.';
+  $('summary').textContent = list.length + ' active provider' + (list.length === 1 ? '' : 's') + ' found.' + (customerLocation?' Sorted by distance where coordinates are available.':'');
+  if(mapReady)renderMap();
 
   $('providerGrid').innerHTML = list.length
     ? list.map(p => `
@@ -398,6 +405,7 @@ function render() {
         <p class="desc">${esc(p.desc)}</p>
         <div class="stats">
           <span>📍 <b>${esc(p.location)}</b></span>
+          ${Number.isFinite(p.distanceKm)?'<span>↗ <b>'+p.distanceKm.toFixed(1)+' km away</b></span>':''}
           <span>🧰 <b>${p.years} yrs</b></span>
           <span>★ <b>${p.rating}</b> (${p.reviews})</span>
         </div>
@@ -467,6 +475,10 @@ async function loadProviders() {
     category,
     service: p.category_name || 'Local service',
     location: p.district || 'Kerala',
+    town: p.town || '',
+    latitude: p.latitude===null||p.latitude===undefined||p.latitude===''?null:Number(p.latitude),
+    longitude: p.longitude===null||p.longitude===undefined||p.longitude===''?null:Number(p.longitude),
+    distanceKm: null,
     icon: icons[category] || '📍',
     years: Number(p.years_experience) || 0,
     rating: p.average_rating == null ? 'New' : p.average_rating,
@@ -488,7 +500,9 @@ async function loadProviders() {
   };
 }));
 
+    data.forEach(p=>{p.distanceKm=customerLocation&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});
     render();
+    initProviderMap();
   } catch (error) {
     $('summary').textContent = 'Provider listings could not be loaded.';
     $('providerGrid').innerHTML =
@@ -641,6 +655,9 @@ function openModal(type, p = null) {
         ['Password (10+ characters)', 'password', 'password', 'Create a password'],
         ['Service category', 'service', 'select', ''],
         ['District', 'district', 'select', ''],
+        ['Town / locality', 'town', 'text', 'e.g. Aluva'],
+        ['Street address', 'address', 'text', 'Service location or landmark'],
+        ['Location pin', 'location', 'button', ''],
         ['Short description', 'details', 'textarea', 'What services do you offer?']
       ]
     : [
@@ -676,6 +693,8 @@ function openModal(type, p = null) {
           'Wayanad', 'Kannur', 'Kasaragod'
         ].map(d => '<option>' + d + '</option>').join('') +
         '</select>';
+    } else if (x[1] === 'location') {
+      html += '<div class="full" style="margin-top:2px"><button type="button" class="btn light" id="providerUseGps">Use this device\'s GPS location</button> <span class="map-note" id="providerGpsStatus">Optional, helps customers find nearby services.</span><input id="f_latitude" type="hidden"><input id="f_longitude" type="hidden"></div>';
     } else if (x[1] === 'details') {
       html += '<textarea id="' + id + '" rows="3" placeholder="' +
         x[3] + '"></textarea>';
@@ -692,6 +711,7 @@ function openModal(type, p = null) {
     return html + '</div>';
   }).join('');
 
+  if(type==='provider'){$('providerUseGps').addEventListener('click',()=>{const b=$('providerUseGps');if(!navigator.geolocation){$('providerGpsStatus').textContent='GPS is not supported in this browser.';return;}b.disabled=true;$('providerGpsStatus').textContent='Waiting for location permission…';navigator.geolocation.getCurrentPosition(pos=>{$('f_latitude').value=pos.coords.latitude;$('f_longitude').value=pos.coords.longitude;$('providerGpsStatus').textContent='Location captured and ready to save.';b.disabled=false;},()=>{$('providerGpsStatus').textContent='GPS unavailable. Submit without it and use district/town search.';b.disabled=false;},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});});}
   $('submit').textContent = type === 'provider'
     ? 'Submit provider interest'
     : 'Submit booking request';
@@ -737,6 +757,8 @@ $('clear').addEventListener('click', () => {
   $('keyword').value = '';
   render();
 });
+$('useMyLocation').addEventListener('click',requestCustomerLocation);
+$('clearLocation').addEventListener('click',()=>{customerLocation=null;data.forEach(p=>p.distanceKm=null);render();renderMap();$('mapStatus').textContent='Location cleared. Search by district/town or enable location when needed.';});
 
 document.querySelectorAll('[data-cat]').forEach(b => {
   b.addEventListener('click', () => {
@@ -792,6 +814,10 @@ $('requestForm').addEventListener('submit', async e => {
         phone: $('f_phone').value.trim(),
         category: $('f_service').value.trim(),
         district: $('f_district').value.trim(),
+        town: $('f_town').value.trim(),
+        address: $('f_address').value.trim(),
+        latitude: $('f_latitude').value,
+        longitude: $('f_longitude').value,
         description: $('f_details').value.trim()
       }
     : {
@@ -841,5 +867,6 @@ $('year').textContent = new Date().getFullYear();
 refreshAccount();
 loadProviders();
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
