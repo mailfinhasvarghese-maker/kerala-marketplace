@@ -330,6 +330,7 @@ export default {
       const canManageCategories = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_categories"));
       const canManageRoles = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_roles"));
       const canManageStaff = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_staff"));
+      const canReviewProviders = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("review_providers"));
       if (path === "/api/admin/categories" && request.method === "GET") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const result=await env.DB.prepare("SELECT id,name,slug,description,icon,active,sort_order FROM categories ORDER BY sort_order,name").all();
@@ -354,13 +355,20 @@ export default {
         return respond({ok:true,message:"Category deleted."});
       }
       if (path === "/api/admin/providers" && request.method === "GET") {
-        if(!isMainAdmin)return respond({error:"Only the super admin can manage all providers."},403);
+        if(!canReviewProviders)return respond({error:"You do not have permission to review provider applications."},403);
         const result=await env.DB.prepare("SELECT p.id,p.business_name,p.contact_name,p.phone,p.email,p.district,p.town,p.address,p.description,p.years_experience,p.category_id,p.latitude,p.longitude,p.status,p.created_at,c.name AS category_name FROM providers p LEFT JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC LIMIT 500").all();
         return respond({providers:result.results||[]});
       }
       if (path === "/api/admin/providers" && request.method === "PATCH") {
-        if(!isMainAdmin)return respond({error:"Only the super admin can edit providers."},403);
+        if(!canReviewProviders)return respond({error:"You do not have permission to review provider applications."},403);
         const b=await request.json(),id=Number.parseInt(b.id,10);
+        if(!isMainAdmin){
+          const status=String(b.status||"");
+          if(!["active","rejected"].includes(status))return respond({error:"Reviewers may only approve/publish or reject provider applications."},400);
+          const updated=await env.DB.prepare("UPDATE providers SET status=? WHERE id=? AND status='pending'").bind(status,id).run();
+          if(!updated.meta?.changes)return respond({error:"Pending provider not found or already reviewed."},404);
+          return respond({ok:true,message:status==="active"?"Provider approved and published.":"Provider rejected and kept hidden."});
+        }
         if(!Number.isInteger(id)||id<1)return respond({error:"A valid provider ID is required."},400);
         const business=String(b.business_name||"").trim().slice(0,160),contact=String(b.contact_name||"").trim().slice(0,120),phone=String(b.phone||"").trim().slice(0,40),email=String(b.email||"").trim().toLowerCase().slice(0,254),district=String(b.district||"").trim().slice(0,100),town=String(b.town||"").trim().slice(0,100),address=String(b.address||"").trim().slice(0,300),description=String(b.description||"").trim().slice(0,2000),years=Number.parseInt(b.years_experience,10)||0,status=String(b.status||"pending"),categoryId=Number.parseInt(b.category_id,10)||null,lat=b.latitude===""||b.latitude==null?null:Number(b.latitude),lng=b.longitude===""||b.longitude==null?null:Number(b.longitude);
         if(!business||!contact||!phone||!email)return respond({error:"Business name, contact name, phone and email are required."},400);
