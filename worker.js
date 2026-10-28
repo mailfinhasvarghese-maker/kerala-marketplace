@@ -24,7 +24,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
-  const additions = {booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
+  const additions = {providers:[["latitude","REAL"],["longitude","REAL"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
     const info = await db.prepare("PRAGMA table_info("+table+")").all();
     const names = new Set((info.results||[]).map(x=>x.name));
@@ -240,7 +240,7 @@ export default {
         const sql =
           "SELECT " +
           "p.id, p.business_name, p.contact_name, p.phone, p.email, " +
-          "p.district, p.town, p.address, p.description, " +
+          "p.district, p.town, p.address, p.description, p.latitude, p.longitude, " +
           "p.years_experience, p.created_at, " +
           "c.name AS category_name, c.slug AS category_slug, " +
           "ROUND(AVG(CASE WHEN r.status = 'published' THEN r.rating END), 1) AS average_rating, " +
@@ -318,8 +318,8 @@ export default {
         const insertSql =
           "INSERT INTO providers (" +
           "business_name, contact_name, phone, email, district, " +
-          "town, address, description, years_experience, category_id, status" +
-          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
+          "town, address, description, years_experience, category_id, status, latitude, longitude" +
+          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)";
 
         const result = await env.DB.prepare(insertSql)
           .bind(
@@ -335,7 +335,9 @@ export default {
               0,
               Number.parseInt(body.years_experience, 10) || 0
             ),
-            categoryId
+            categoryId,
+            Number.isFinite(Number(body.latitude)) && body.latitude !== "" && Number(body.latitude) >= -90 && Number(body.latitude) <= 90 ? Number(body.latitude) : null,
+            Number.isFinite(Number(body.longitude)) && body.longitude !== "" && Number(body.longitude) >= -180 && Number(body.longitude) <= 180 ? Number(body.longitude) : null
           )
           .run();
 
