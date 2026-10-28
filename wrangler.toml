@@ -6,3 +6,7 @@ compatibility_date = "2026-10-21"
 binding = "DB"
 database_name = "kerala-marketplace-db"
 database_id = "6f0ac318-eb85-4e61-83a6-068bf75cdbac"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "nattukaar-provider-images"
