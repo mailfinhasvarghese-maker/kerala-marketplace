@@ -561,7 +561,8 @@ h1 em{font-style:normal;color:var(--g)}
 <script>
 const data = [];
 const $ = id => document.getElementById(id);
-let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false, serviceCategories=[];
+let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false, serviceCategories=[], localSearchActive=false;
+const LOCAL_SEARCH_RADIUS_KM=25;
 const categoryIconFallback=['🧰','📍','🔧','🏠','🚕','🛠️','🌿','🎪'];
 async function loadCategories(){
   const filter=$('catFilter'),cards=$('categoryCards');
@@ -583,7 +584,7 @@ function renderMap(){
  if(!mapReady)return;
  providerMarkers.clearLayers();
  const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();
- const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase()===l.toLowerCase()||(p.town||"").toLowerCase()===l.toLowerCase())&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k)));
+ const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase()===l.toLowerCase()||(p.town||"").toLowerCase()===l.toLowerCase())&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
  const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
  located.forEach(p=>{
    const popup=document.createElement("div");
@@ -626,7 +627,7 @@ function renderMap(){
  if(status)status.textContent=customerLocation?"Sorted by distance from your location. "+located.length+" provider(s) have map coordinates.":located.length+" provider(s) have map coordinates. Allow location for nearby sorting; district/town search works without it.";
 }
 window.nattukaarProfile=function(id){const p=data.find(x=>x.id===Number(id));if(p)openProfile(p);};
-function requestCustomerLocation(){if(!navigator.geolocation){toast("This browser does not support location. Use the district filter instead.");return;}$("mapStatus").textContent="Requesting your location permission…";navigator.geolocation.getCurrentPosition(pos=>{customerLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};data.forEach(p=>{p.distanceKm=Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});render();renderMap();toast("Location enabled for this search.");},()=>{$("mapStatus").textContent="Location unavailable or permission denied. Search by district/town instead.";toast("Could not access location. You can still search by district or town.");},{enableHighAccuracy:true,timeout:10000,maximumAge:120000});}
+function requestCustomerLocation(){if(!navigator.geolocation){toast("This browser does not support location. Use the district filter instead.");return;}$("mapStatus").textContent="Requesting your location permission…";navigator.geolocation.getCurrentPosition(pos=>{customerLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};data.forEach(p=>{p.distanceKm=Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});if(localSearchActive){const nearby=data.filter(p=>Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM);render();renderMap();if(!nearby.length){alert("Sorry, there is no service available right now for your location.");}else{toast(nearby.length+" nearby service"+(nearby.length===1?"":"s")+" found within "+LOCAL_SEARCH_RADIUS_KM+" km.");}}else{render();renderMap();toast("Location enabled for this search.");}},()=>{$("mapStatus").textContent="Location unavailable or permission denied. Search by district/town instead.";toast("Could not access location. You can still search by district or town.");},{enableHighAccuracy:true,timeout:10000,maximumAge:120000});}
 let mode = 'booking';
 let selected = null;
 let authMode='login', currentAccount=null, authToken=localStorage.getItem('nattukaar_token')||'', pendingProvider=null;
@@ -649,7 +650,8 @@ function render() {
   const list = data.filter(p =>
     (c === 'all' || p.category === c) &&
     (l === 'all' || p.location.toLowerCase() === l.toLowerCase() || (p.town||'').toLowerCase() === l.toLowerCase()) &&
-    (!k || [p.name, p.category, p.service, p.location, p.town, p.desc, p.tags].join(' ').toLowerCase().includes(k))
+    (!k || [p.name, p.category, p.service, p.location, p.town, p.desc, p.tags].join(' ').toLowerCase().includes(k)) &&
+    (!localSearchActive || (Number.isFinite(p.distanceKm) && p.distanceKm <= LOCAL_SEARCH_RADIUS_KM))
   ).sort((a,b)=>customerLocation?(Number.isFinite(a.distanceKm)?a.distanceKm:Infinity)-(Number.isFinite(b.distanceKm)?b.distanceKm:Infinity):0);
 
   $('summary').textContent = list.length + ' active provider' + (list.length === 1 ? '' : 's') + ' found.' + (customerLocation?' Sorted by distance where coordinates are available.':'');
@@ -995,6 +997,7 @@ function closeModal() {
 
 const searchLocallyBtn=$('searchLocallyBtn');
 if(searchLocallyBtn)searchLocallyBtn.addEventListener('click',function(){
+ localSearchActive=true;
  searchLocallyBtn.disabled=true;
  const original=searchLocallyBtn.innerHTML;
  searchLocallyBtn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><span>Finding you…</span>';
