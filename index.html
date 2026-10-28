@@ -1016,7 +1016,7 @@ $('authForm').addEventListener('submit',async function(e){
 });
 $('signOut').addEventListener('click',async function(){try{await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/logout',{method:'POST',headers:authHeaders()});}catch(e){}authToken='';currentAccount=null;localStorage.removeItem('nattukaar_token');updateAuthButtons();$('accountBg').classList.remove('open');document.body.style.overflow='';toast('Signed out.');});
 
-$('headerSearch').addEventListener('submit', e => { e.preventDefault(); $('keyword').value=$('headerKeyword').value.trim(); $('searchForm').requestSubmit(); document.getElementById('providers').scrollIntoView({behavior:'smooth',block:'start'}); });
+// Removed obsolete listener for the deleted duplicate header search form.
 $('searchForm').addEventListener('submit', e => {
   e.preventDefault();
   render();
