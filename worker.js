@@ -212,7 +212,9 @@ export default {
         if (!env.IMAGES) return respond({error:"Image storage is not configured. Please contact support."},503);
         const body = await request.json();
         const images = Array.isArray(body.images) ? body.images : [];
-        if (images.length > 5) return respond({error:"You can upload up to 5 photos."},400);
+        const existingRows = await env.DB.prepare("SELECT id, object_key FROM provider_images WHERE provider_id=? ORDER BY id").bind(account.provider_id).all();
+        const existing = existingRows.results || [];
+        if (existing.length + images.length > 5) return respond({error:"You already have " + existing.length + " photo(s). You can add " + Math.max(0,5-existing.length) + " more. Delete a photo first if you want to replace it."},400);
         const prepared = [];
         for (const item of images) {
           const value = String(item && item.data_url || "");
@@ -224,11 +226,6 @@ export default {
           for (let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
           prepared.push(bytes);
         }
-        const oldRows = await env.DB.prepare("SELECT id, object_key FROM provider_images WHERE provider_id=?").bind(account.provider_id).all();
-        for (const old of (oldRows.results||[])) {
-          await env.IMAGES.delete(old.object_key);
-        }
-        await env.DB.prepare("DELETE FROM provider_images WHERE provider_id=?").bind(account.provider_id).run();
         const saved = [];
         for (const bytes of prepared) {
           const key = "providers/" + account.provider_id + "/" + crypto.randomUUID() + ".jpg";
@@ -236,7 +233,20 @@ export default {
           const row = await env.DB.prepare("INSERT INTO provider_images (provider_id,object_key,content_type) VALUES (?,?,'image/jpeg')").bind(account.provider_id,key).run();
           saved.push({id:row.meta.last_row_id,url:"/api/provider-image?id="+row.meta.last_row_id});
         }
-        return respond({ok:true,message:"Provider photos saved.",images:saved});
+        return respond({ok:true,message:"Photo(s) added successfully.",images:saved});
+      }
+
+      if (path === "/api/provider/images" && request.method === "DELETE") {
+        const account = await getAccount(request, env.DB);
+        if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        if (!env.IMAGES) return respond({error:"Image storage is not configured. Please contact support."},503);
+        const imageId = Number.parseInt(url.searchParams.get("id"),10);
+        if (!Number.isInteger(imageId) || imageId < 1) return respond({error:"Choose a valid photo to delete."},400);
+        const image = await env.DB.prepare("SELECT id,object_key FROM provider_images WHERE id=? AND provider_id=?").bind(imageId,account.provider_id).first();
+        if (!image) return respond({error:"Photo not found for this account."},404);
+        await env.IMAGES.delete(image.object_key);
+        await env.DB.prepare("DELETE FROM provider_images WHERE id=? AND provider_id=?").bind(imageId,account.provider_id).run();
+        return respond({ok:true,message:"Photo deleted."});
       }
 
       if (path === "/api/provider/bookings" && request.method === "GET") {
