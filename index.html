@@ -267,11 +267,83 @@ h1 em{font-style:normal;color:var(--g)}
   .search-caption { flex-wrap: wrap; font-size: 10px; }
 }
 
+
+/* Nattukaar dashboard-style landing layout */
+.notice{display:flex;justify-content:space-between;gap:12px;padding:8px max(20px,calc((100% - 1180px)/2));font-size:11px}
+.notice-right{color:#176b4d;font-weight:700}
+.nav-inner{min-height:72px}
+.links{gap:18px}
+.compact-hero{padding:25px 0 20px;background:#f7faf8}
+.compact-hero-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px 28px;box-shadow:0 2px 8px rgba(23,55,37,.035)}
+.compact-hero h1{font-size:clamp(27px,3.2vw,40px);line-height:1.12;letter-spacing:-1.5px;margin:12px 0 8px}
+.compact-hero p{font-size:14px;line-height:1.6;margin:0;max-width:760px}
+.hero-join{flex:0 0 auto;min-height:46px}
+.search{padding:8px 0 16px;background:#f7faf8}
+.search-box{display:grid;grid-template-columns:minmax(170px,.85fr) minmax(190px,.95fr) minmax(240px,1.7fr) 130px;align-items:center;gap:0;width:100%;min-height:78px;padding:8px;background:#fff;border:1px solid #dfe7e1;border-radius:15px;box-shadow:0 3px 14px rgba(23,55,37,.04)}
+.search-box .field{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;min-height:54px;padding:7px 16px;border-right:1px solid #edf0ed}
+.search-box .field label{font-size:10px;font-weight:750;color:#68766e;letter-spacing:.035em}
+.search-box .field input,.search-box .field select{width:100%;min-width:0;padding:3px 18px 3px 0;border:0;border-radius:0;background:transparent;box-shadow:none;color:#17231d;font-size:13px}
+.search-box .field input:focus,.search-box .field select:focus{border:0;box-shadow:none}
+.search-box .search-keyword-field{border-right:0}
+.search-box .search-submit{align-self:center;display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;padding:12px 16px;border-radius:10px;background:#176b4d;color:#fff;white-space:nowrap}
+.search-caption{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:10px;color:#7b877f;font-size:11px}
+.search-ai-mark{color:#176b4d;font-size:14px}
+.section{padding:20px 0}
+#categories{padding:0 0 14px;background:#f7faf8}
+#categories .head{margin-bottom:12px}
+#categories .head h2{font-size:20px;margin:0}
+#categories .head p,#categories .head .eyebrow{display:none}
+.categories{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 0 8px}
+.category{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-height:38px;padding:9px 13px;border-radius:10px;text-align:center;white-space:nowrap}
+.cat-icon{display:none}
+.category strong{font-size:12px}
+.category small{display:none}
+.category.active{background:#176b4d;color:#fff;border-color:#176b4d}
+.map-section{padding:0 0 24px;background:#f7faf8}
+#mapPanel{margin:0;background:#fff;border:1px solid var(--line);border-radius:17px;padding:10px;box-shadow:0 3px 12px rgba(23,55,37,.04)}
+.map-tools{margin-bottom:10px;padding:2px 2px}
+#providerMap{height:390px;border-radius:12px}
+.providers{background:#fff;border-block:1px solid var(--line)}
+.providers.section{padding:32px 0}
+@media(max-width:900px){
+ .compact-hero-inner{padding:20px;align-items:flex-start}
+ .search-box{grid-template-columns:1fr 1fr;gap:4px;padding:10px}
+ .search-box .field{padding:11px;border-right:0;border-bottom:1px solid #edf0ed}
+ .search-box .search-keyword-field,.search-box .search-submit{grid-column:1/-1}
+ .search-box .search-submit{min-height:48px}
+ .hero-join{max-width:190px}
+}
+@media(max-width:640px){
+ .notice{padding:7px 16px;font-size:10px}
+ .notice-right{display:none}
+ .nav-inner{align-items:flex-start;gap:10px;padding:14px 0}
+ .links{gap:8px;flex-wrap:wrap;justify-content:flex-end}
+ .links a{display:none}
+ .links .btn{font-size:11px;padding:9px 10px}
+ .compact-hero{padding:14px 0}
+ .compact-hero-inner{display:block;padding:18px;border-radius:15px}
+ .compact-hero h1{font-size:29px;letter-spacing:-1px}
+ .compact-hero p{font-size:13px}
+ .hero-join{margin-top:14px;max-width:none;width:100%}
+ .search{padding:0 0 14px}
+ .search-box{grid-template-columns:1fr;gap:0;padding:8px;border-radius:13px}
+ .search-box .field,.search-box .search-keyword-field{grid-column:auto;min-height:60px;padding:10px 12px;border-bottom:1px solid #edf0ed}
+ .search-box .field input,.search-box .field select{font-size:14px}
+ .search-box .search-submit{grid-column:auto;margin-top:8px;min-height:48px}
+ .search-caption{flex-wrap:wrap;font-size:10px}
+ #categories{padding-bottom:10px}
+ #providerMap{height:320px}
+ .map-tools{align-items:flex-start}
+ .location-row{width:100%}
+ .location-row .btn{flex:1}
+ .providers.section{padding:24px 0}
+}
+
 </style>
 </head>
 
 <body>
-<div class="notice">Early preview · Active provider listings · Customer booking requests are saved for review</div>
+<div class="notice"><span>Kerala’s local services marketplace</span><span class="notice-right">Discover · Compare · Contact</span></div>
 
 <header class="nav">
   <div class="wrap nav-inner">
@@ -289,21 +361,14 @@ h1 em{font-style:normal;color:var(--g)}
 </header>
 
 <main>
-<section class="hero">
-  <div class="wrap hero-grid">
+<section class="hero compact-hero">
+  <div class="wrap compact-hero-inner">
     <div>
       <span class="eyebrow"><span class="dot"></span> LOCAL SERVICES, MADE SIMPLE</span>
-      <h1>Find the right help.<br><em>Right here in Kerala.</em></h1>
-      <p>Find local taxi operators, rental providers, skilled workers and service professionals across Kerala. Compare providers and contact the right service for your needs.</p>
-      <div class="actions">
-        <a class="btn primary" href="#providers">Explore providers →</a>
-        <button class="btn light" data-join>Become a provider</button>
-      </div>
+      <h1>Find trusted services <em>near you.</em></h1>
+      <p>Discover local taxi providers, rentals, skilled workers and service professionals across Kerala.</p>
     </div>
-    <div class="hero-art">
-      <span class="art-label">Made for local communities</span>
-      <div class="float">📍 &nbsp; Search by district<br><span style="color:#68766e;font-weight:500">Find help near you</span></div>
-    </div>
+    <button class="btn primary hero-join" data-join>＋ Join as a provider</button>
   </div>
 </section>
 
@@ -360,6 +425,8 @@ h1 em{font-style:normal;color:var(--g)}
     </div>
   </div>
 </section>
+<section class="map-section" aria-label="Map of local service providers"><div class="wrap"><div id="mapPanel"><div class="map-tools"><div><strong>Providers near you</strong><div class="map-note" id="mapStatus">Allow location to sort providers by distance, or search by district.</div></div><div class="location-row"><button class="btn light" type="button" id="useMyLocation">Use my current location</button><button class="btn outline" type="button" id="clearLocation">Clear location</button></div></div><div id="providerMap" role="application" aria-label="Map showing service providers"></div></div></div></section>
+
 
 <section class="section providers" id="providers">
   <div class="wrap">
@@ -371,7 +438,7 @@ h1 em{font-style:normal;color:var(--g)}
       </div>
       <button class="btn outline" id="clear">Clear filters ↺</button>
     </div>
-    <div id="mapPanel"><div class="map-tools"><div><strong>Providers near you</strong><div class="map-note" id="mapStatus">Allow location to sort providers by distance, or search by district.</div></div><div class="location-row"><button class="btn light" type="button" id="useMyLocation">Use my current location</button><button class="btn outline" type="button" id="clearLocation">Clear location</button></div></div><div id="providerMap" role="application" aria-label="Map showing service providers"></div></div><div class="grid" id="providerGrid" aria-live="polite"></div>
+    <div class="grid" id="providerGrid" aria-live="polite"></div>
   </div>
 </section>
 
