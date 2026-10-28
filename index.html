@@ -354,6 +354,7 @@ h1 em{font-style:normal;color:var(--g)}
 </div>
 <div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const data = [];
 const $ = id => document.getElementById(id);
@@ -867,6 +868,5 @@ $('year').textContent = new Date().getFullYear();
 refreshAccount();
 loadProviders();
 </script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
