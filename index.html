@@ -204,11 +204,6 @@ h1 em{font-style:normal;color:var(--g)}
         <label for="catFilter">What do you need?</label>
         <select id="catFilter">
           <option value="all">All services</option>
-          <option value="Taxi">Taxi & travel</option>
-          <option value="Rentals">Rentals</option>
-          <option value="Workers">Skilled workers</option>
-          <option value="Home services">Home services</option>
-          <option value="Events">Event services</option>
         </select>
       </div>
       <div class="field">
@@ -249,12 +244,7 @@ h1 em{font-style:normal;color:var(--g)}
         <p>Start with a service category, then compare providers.</p>
       </div>
     </div>
-    <div class="categories">
-      <button class="category" data-cat="Taxi"><span class="cat-icon">🚕</span><strong>Taxi & travel</strong><small>Local, airport, outstation</small></button>
-      <button class="category" data-cat="Rentals"><span class="cat-icon">🔧</span><strong>Equipment rentals</strong><small>Tools, vehicles, items</small></button>
-      <button class="category" data-cat="Workers"><span class="cat-icon">🧰</span><strong>Skilled workers</strong><small>Carpenters, painters, more</small></button>
-      <button class="category" data-cat="Home services"><span class="cat-icon">🏠</span><strong>Home services</strong><small>Repairs and maintenance</small></button>
-      <button class="category" data-cat="Events"><span class="cat-icon">🎪</span><strong>Event services</strong><small>Setup, sound, photography</small></button>
+    <div class="categories" id="categoryCards">
       <button class="category" data-cat="all"><span class="cat-icon">✳️</span><strong>All services</strong><small>Explore every category</small></button>
     </div>
   </div>
@@ -358,7 +348,22 @@ h1 em{font-style:normal;color:var(--g)}
 <script>
 const data = [];
 const $ = id => document.getElementById(id);
-let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false;
+let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false, serviceCategories=[];
+const categoryIconFallback=['🧰','📍','🔧','🏠','🚕','🛠️','🌿','🎪'];
+async function loadCategories(){
+  const filter=$('catFilter'),cards=$('categoryCards');
+  try{
+    const response=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/categories');
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||'Could not load categories');
+    serviceCategories=Array.isArray(result.categories)?result.categories:[];
+    filter.innerHTML='<option value="all">All services</option>';
+    serviceCategories.forEach(c=>{const option=document.createElement('option');option.value=c.name;option.textContent=c.name;filter.appendChild(option);});
+    cards.innerHTML='';
+    serviceCategories.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='category';b.dataset.cat=c.name;const icon=document.createElement('span');icon.className='cat-icon';icon.textContent=c.icon||categoryIconFallback[i%categoryIconFallback.length];const title=document.createElement('strong');title.textContent=c.name;const desc=document.createElement('small');desc.textContent=c.description||'Explore local providers';b.append(icon,title,desc);cards.appendChild(b);});
+    const all=document.createElement('button');all.type='button';all.className='category';all.dataset.cat='all';all.innerHTML='<span class="cat-icon">✳️</span><strong>All services</strong><small>Explore every category</small>';cards.appendChild(all);
+  }catch(error){console.error('Category loading failed:',error);}
+}
 function distanceKm(a,b){const rad=x=>x*Math.PI/180;const dLat=rad(b.lat-a.lat),dLon=rad(b.lng-a.lng);const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
 function initProviderMap(){if(mapReady||!window.L)return;providerMap=L.map("providerMap").setView([10.35,76.25],7);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(providerMap);providerMarkers=L.layerGroup().addTo(providerMap);mapReady=true;renderMap();}
 function renderMap(){if(!mapReady)return;providerMarkers.clearLayers();const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase()===l.toLowerCase()||(p.town||"").toLowerCase()===l.toLowerCase())&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k)));const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));located.forEach(p=>{const popup=document.createElement("div");popup.innerHTML="<strong>"+esc(p.name)+"</strong><br>"+esc(p.service)+"<br>"+esc([p.town,p.location].filter(Boolean).join(", "));if(Number.isFinite(p.distanceKm))popup.innerHTML+="<br>"+p.distanceKm.toFixed(1)+" km away";const btn=document.createElement("button");btn.type="button";btn.textContent="View profile";btn.onclick=()=>window.nattukaarProfile(p.id);popup.appendChild(document.createElement("br"));popup.appendChild(btn);providerMarkers.addLayer(L.marker([p.latitude,p.longitude]).bindPopup(popup));});if(customerLocation){providerMarkers.addLayer(L.circleMarker([customerLocation.lat,customerLocation.lng],{radius:8,color:"#176b4d",fillColor:"#32a66b",fillOpacity:.9}).bindPopup("Your current location"));}if(located.length&&customerLocation){providerMap.fitBounds([[customerLocation.lat,customerLocation.lng],...located.map(p=>[p.latitude,p.longitude])],{padding:[25,25],maxZoom:13});}else if(located.length){providerMap.fitBounds(located.map(p=>[p.latitude,p.longitude]),{padding:[25,25],maxZoom:12});}else{providerMap.setView(customerLocation?[customerLocation.lat,customerLocation.lng]:[10.35,76.25],customerLocation?11:7);}document.getElementById("mapStatus").textContent=customerLocation?"Sorted by distance from your location. "+located.length+" provider(s) have map coordinates.":located.length+" provider(s) have map coordinates. Allow location for nearby sorting; district/town search works without it.";}
@@ -685,11 +690,7 @@ function openModal(type, p = null) {
     if (x[1] === 'service') {
       html += '<select id="' + id + '" required>' +
         '<option value="">Choose a category</option>' +
-        '<option value="Taxi">Taxi</option>' +
-        '<option value="Rentals">Rentals</option>' +
-        '<option value="Workers">Workers</option>' +
-        '<option value="Home services">Home services</option>' +
-        '<option value="Events">Events</option>' +
+        serviceCategories.map(c => '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>').join('') +
         '</select>';
     } else if (x[1] === 'district') {
       html += '<select id="' + id + '" required>' +
@@ -768,12 +769,12 @@ $('clear').addEventListener('click', () => {
 $('useMyLocation').addEventListener('click',requestCustomerLocation);
 $('clearLocation').addEventListener('click',()=>{customerLocation=null;data.forEach(p=>p.distanceKm=null);render();renderMap();$('mapStatus').textContent='Location cleared. Search by district/town or enable location when needed.';});
 
-document.querySelectorAll('[data-cat]').forEach(b => {
-  b.addEventListener('click', () => {
-    $('catFilter').value = b.dataset.cat;
-    render();
-    $('providers').scrollIntoView({ behavior: 'smooth' });
-  });
+$('categoryCards').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]');
+  if (!b) return;
+  $('catFilter').value = b.dataset.cat;
+  render();
+  $('providers').scrollIntoView({ behavior: 'smooth' });
 });
 
 document.querySelectorAll('[data-join]').forEach(b => {
@@ -874,7 +875,7 @@ $('requestForm').addEventListener('submit', async e => {
 $('year').textContent = new Date().getFullYear();
 refreshAccount();
 initProviderMap();
-loadProviders();
+loadCategories().then(loadProviders);
 </script>
 </body>
 </html>
