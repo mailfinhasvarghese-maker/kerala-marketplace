@@ -343,6 +343,48 @@ export default {
         if(!name||!slug)return respond({error:"Category name is required."},400);
         try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,slug=?,description=?,icon=?,active=?,sort_order=? WHERE id=?").bind(name,slug,description,icon,active,sortOrder,id).run(); else await env.DB.prepare("INSERT INTO categories (name,slug,description,icon,active,sort_order) VALUES (?,?,?,?,?,?)").bind(name,slug,description,icon,active,sortOrder).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
       }
+      if (path === "/api/admin/categories" && request.method === "DELETE") {
+        if(!isMainAdmin)return respond({error:"Only the super admin can permanently delete categories."},403);
+        const id=Number.parseInt(url.searchParams.get("id"),10);
+        if(!Number.isInteger(id)||id<1)return respond({error:"A valid category ID is required."},400);
+        const linked=await env.DB.prepare("SELECT COUNT(*) AS total FROM providers WHERE category_id=?").bind(id).first();
+        if(Number(linked?.total||0)>0)return respond({error:"This category is assigned to "+linked.total+" provider(s). Reassign those providers or deactivate the category instead."},409);
+        const deleted=await env.DB.prepare("DELETE FROM categories WHERE id=?").bind(id).run();
+        if(!deleted.meta?.changes)return respond({error:"Category not found."},404);
+        return respond({ok:true,message:"Category deleted."});
+      }
+      if (path === "/api/admin/providers" && request.method === "GET") {
+        if(!isMainAdmin)return respond({error:"Only the super admin can manage all providers."},403);
+        const result=await env.DB.prepare("SELECT p.id,p.business_name,p.contact_name,p.phone,p.email,p.district,p.town,p.address,p.description,p.years_experience,p.category_id,p.latitude,p.longitude,p.status,p.created_at,c.name AS category_name FROM providers p LEFT JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC LIMIT 500").all();
+        return respond({providers:result.results||[]});
+      }
+      if (path === "/api/admin/providers" && request.method === "PATCH") {
+        if(!isMainAdmin)return respond({error:"Only the super admin can edit providers."},403);
+        const b=await request.json(),id=Number.parseInt(b.id,10);
+        if(!Number.isInteger(id)||id<1)return respond({error:"A valid provider ID is required."},400);
+        const business=String(b.business_name||"").trim().slice(0,160),contact=String(b.contact_name||"").trim().slice(0,120),phone=String(b.phone||"").trim().slice(0,40),email=String(b.email||"").trim().toLowerCase().slice(0,254),district=String(b.district||"").trim().slice(0,100),town=String(b.town||"").trim().slice(0,100),address=String(b.address||"").trim().slice(0,300),description=String(b.description||"").trim().slice(0,2000),years=Number.parseInt(b.years_experience,10)||0,status=String(b.status||"pending"),categoryId=Number.parseInt(b.category_id,10)||null,lat=b.latitude===""||b.latitude==null?null:Number(b.latitude),lng=b.longitude===""||b.longitude==null?null:Number(b.longitude);
+        if(!business||!contact||!phone||!email)return respond({error:"Business name, contact name, phone and email are required."},400);
+        if(!["pending","active","rejected"].includes(status))return respond({error:"Invalid provider status."},400);
+        if((lat!==null&&!Number.isFinite(lat))||(lng!==null&&!Number.isFinite(lng))||(lat!==null&&(lat < -90||lat>90))||(lng!==null&&(lng < -180||lng>180)))return respond({error:"Enter valid latitude and longitude coordinates."},400);
+        if(categoryId!==null){const category=await env.DB.prepare("SELECT id FROM categories WHERE id=?").bind(categoryId).first();if(!category)return respond({error:"Selected category was not found."},400);}
+        const updated=await env.DB.prepare("UPDATE providers SET business_name=?,contact_name=?,phone=?,email=?,district=?,town=?,address=?,description=?,years_experience=?,category_id=?,latitude=?,longitude=?,status=? WHERE id=?").bind(business,contact,phone,email,district,town,address,description,years,categoryId,lat,lng,status,id).run();
+        if(!updated.meta?.changes)return respond({error:"Provider not found or no changes were made."},404);
+        return respond({ok:true,message:"Provider updated."});
+      }
+      if (path === "/api/admin/providers" && request.method === "DELETE") {
+        if(!isMainAdmin)return respond({error:"Only the super admin can delete providers."},403);
+        const id=Number.parseInt(url.searchParams.get("id"),10);
+        if(!Number.isInteger(id)||id<1)return respond({error:"A valid provider ID is required."},400);
+        const exists=await env.DB.prepare("SELECT id FROM providers WHERE id=?").bind(id).first();
+        if(!exists)return respond({error:"Provider not found."},404);
+        const bookings=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=?").bind(id).first();
+        const reviews=await env.DB.prepare("SELECT COUNT(*) AS total FROM customer_reviews WHERE provider_id=?").bind(id).first();
+        if(Number(bookings?.total||0)>0||Number(reviews?.total||0)>0)return respond({error:"This provider has booking or review history. Change the provider status to rejected to remove them from public listings while preserving records."},409);
+        await env.DB.prepare("DELETE FROM provider_images WHERE provider_id=?").bind(id).run();
+        await env.DB.prepare("UPDATE user_accounts SET provider_id=NULL,role='customer' WHERE provider_id=?").bind(id).run();
+        await env.DB.prepare("DELETE FROM providers WHERE id=?").bind(id).run();
+        return respond({ok:true,message:"Provider deleted."});
+      }
       if (path === "/api/admin/job-roles" && request.method === "GET") {
         if(!canManageRoles)return respond({error:"You do not have permission to manage job roles."},403);
         const result=await env.DB.prepare("SELECT id,name,description,permissions_json,created_at FROM job_roles ORDER BY name").all();
