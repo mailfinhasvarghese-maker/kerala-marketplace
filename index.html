@@ -369,6 +369,8 @@ h1 em{font-style:normal;color:var(--g)}
 @media(max-width:540px){#mapPanel{padding:8px}.map-explorer{gap:9px}#providerMap{height:300px;min-height:300px}.map-provider-cards{grid-template-columns:1fr;max-height:280px}.map-tools{align-items:flex-start}.location-row{width:100%}.location-row .btn{flex:1}}
 
 @media(max-width:900px){.header-search{width:190px}.links{gap:10px}.links a{font-size:12px}}
+
+#homeLocationSuggestions button{display:block;width:100%;padding:10px 12px;border:0;background:#fff;text-align:left;color:var(--ink);cursor:pointer;font:inherit;border-bottom:1px solid var(--line)}#homeLocationSuggestions button:hover,#homeLocationSuggestions button:focus{background:var(--mint);outline:0}#homeLocationSuggestions .place-detail{display:block;font-size:11px;color:var(--muted);margin-top:2px}
 </style>
 </head>
 
@@ -416,25 +418,11 @@ h1 em{font-style:normal;color:var(--g)}
           <option value="all">All services</option>
         </select>
       </div>
-      <div class="field search-location-field">
-        <label for="locFilter">Location</label>
-        <select id="locFilter">
-          <option value="all">All locations in Kerala</option>
-          <option>Thiruvananthapuram</option>
-          <option>Kollam</option>
-          <option>Pathanamthitta</option>
-          <option>Alappuzha</option>
-          <option>Kottayam</option>
-          <option>Idukki</option>
-          <option>Ernakulam</option>
-          <option>Thrissur</option>
-          <option>Palakkad</option>
-          <option>Malappuram</option>
-          <option>Kozhikode</option>
-          <option>Wayanad</option>
-          <option>Kannur</option>
-          <option>Kasaragod</option>
-        </select>
+      <div class="field search-location-field" style="position:relative">
+        <label for="locFilter">Town / locality</label>
+        <input id="locFilter" type="search" value="all" placeholder="Search a town, locality or district" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="homeLocationSuggestions">
+        <div id="homeLocationSuggestions" role="listbox" style="display:none;position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #183d2a18;max-height:240px;overflow:auto"></div>
+        <small class="map-note">Choose a suggested place to search nearby providers.</small>
       </div>
       <div class="field search-keyword-field">
         <label for="keyword">What are you looking for?</label>
@@ -584,7 +572,7 @@ function renderMap(){
  if(!mapReady)return;
  providerMarkers.clearLayers();
  const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();
- const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase()===l.toLowerCase()||(p.town||"").toLowerCase()===l.toLowerCase())&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
+ const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase().includes(l.toLowerCase())||(p.town||"").toLowerCase().includes(l.toLowerCase()))&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
  const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
  located.forEach(p=>{
    const popup=document.createElement("div");
@@ -649,7 +637,7 @@ function render() {
 
   const list = data.filter(p =>
     (c === 'all' || p.category === c) &&
-    (l === 'all' || p.location.toLowerCase() === l.toLowerCase() || (p.town||'').toLowerCase() === l.toLowerCase()) &&
+    (l === 'all' || p.location.toLowerCase().includes(l.toLowerCase()) || (p.town||'').toLowerCase().includes(l.toLowerCase())) &&
     (!k || [p.name, p.category, p.service, p.location, p.town, p.desc, p.tags].join(' ').toLowerCase().includes(k)) &&
     (!localSearchActive || (Number.isFinite(p.distanceKm) && p.distanceKm <= LOCAL_SEARCH_RADIUS_KM))
   ).sort((a,b)=>customerLocation?(Number.isFinite(a.distanceKm)?a.distanceKm:Infinity)-(Number.isFinite(b.distanceKm)?b.distanceKm:Infinity):0);
@@ -1037,11 +1025,51 @@ $('searchForm').addEventListener('submit', e => {
 
 $('clear').addEventListener('click', () => {
   $('catFilter').value = 'all';
-  $('locFilter').value = 'all';
+  $('locFilter').value = 'all';homePlaceSelected=false;closeHomePlaceSuggestions();
   $('keyword').value = '';
   render();
 });
 $('useMyLocation').addEventListener('click',requestCustomerLocation);
+
+// Map-based town/locality suggestions for the home-page provider search.
+let homePlaceTimer=null,homePlaceController=null,homePlaceSelected=false;
+function closeHomePlaceSuggestions(){const box=$('homeLocationSuggestions');if(box){box.style.display='none';box.innerHTML='';}$('locFilter').setAttribute('aria-expanded','false');}
+function selectHomePlace(place){
+ const a=place.address||{},name=a.city||a.town||a.village||a.municipality||a.suburb||a.neighbourhood||a.hamlet||place.name||place.display_name.split(',')[0];
+ $('locFilter').value=name;homePlaceSelected=true;closeHomePlaceSuggestions();
+ const lat=Number(place.lat),lng=Number(place.lon);
+ if(Number.isFinite(lat)&&Number.isFinite(lng)){
+  customerLocation={lat,lng};localSearchActive=false;
+  if(mapReady)providerMap.setView([lat,lng],12);
+  data.forEach(p=>{p.distanceKm=Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});
+ }
+ render();renderMap();
+}
+$('locFilter').addEventListener('input',()=>{
+ homePlaceSelected=false;clearTimeout(homePlaceTimer);if(homePlaceController)homePlaceController.abort();
+ const q=$('locFilter').value.trim(),box=$('homeLocationSuggestions');
+ if(!q||q.toLowerCase()==='all'){closeHomePlaceSuggestions();return;}
+ homePlaceTimer=setTimeout(async()=>{
+  homePlaceController=new AbortController();
+  try{
+   const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=in&q='+encodeURIComponent(q+' Kerala');
+   const response=await fetch(url,{signal:homePlaceController.signal,headers:{'Accept-Language':'en'}});
+   if(!response.ok)throw new Error('Place search unavailable');
+   const places=await response.json();box.innerHTML='';
+   places.filter(p=>/kerala/i.test(p.display_name)).forEach((place)=>{
+    const label=place.display_name.split(',').slice(0,3).join(', ');
+    const a=document.createElement('button');a.type='button';a.role='option';
+    a.innerHTML='<strong>'+esc(label)+'</strong><span class="place-detail">Map location · '+esc(place.type||'place')+'</span>';
+    a.addEventListener('click',()=>selectHomePlace(place));box.appendChild(a);
+   });
+   if(!box.children.length){box.innerHTML='<div style="padding:10px 12px;color:var(--muted);font-size:12px">No matching places found. Try another town or locality.</div>';}
+   box.style.display='block';$('locFilter').setAttribute('aria-expanded','true');
+  }catch(error){if(error.name!=='AbortError')closeHomePlaceSuggestions();}
+ },400);
+});
+$('locFilter').addEventListener('keydown',e=>{if(e.key==='Escape')closeHomePlaceSuggestions();if(e.key==='Enter'&&!homePlaceSelected&&$('locFilter').value.trim().toLowerCase()!=='all'){e.preventDefault();const first=$('homeLocationSuggestions').querySelector('button');if(first)first.click();}});
+document.addEventListener('click',e=>{if(!e.target.closest('.search-location-field'))closeHomePlaceSuggestions();});
+
 $('clearLocation').addEventListener('click',()=>{customerLocation=null;data.forEach(p=>p.distanceKm=null);render();renderMap();$('mapStatus').textContent='Location cleared. Search by district/town or enable location when needed.';});
 
 $('categoryCards').addEventListener('click', e => {
