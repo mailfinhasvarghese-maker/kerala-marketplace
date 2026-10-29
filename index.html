@@ -424,9 +424,10 @@ h1 em{font-style:normal;color:var(--g)}
         <div id="homeLocationSuggestions" role="listbox" style="display:none;position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #183d2a18;max-height:240px;overflow:auto"></div>
         <small class="map-note">Choose a suggested place to search nearby providers.</small>
       </div>
-      <div class="field search-keyword-field">
+      <div class="field search-keyword-field" style="position:relative">
         <label for="keyword">What are you looking for?</label>
-        <input id="keyword" type="search" placeholder="Taxi, electrician, home rental..." autocomplete="off">
+        <input id="keyword" type="search" placeholder="Start typing a service..." autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="serviceSuggestions">
+        <div id="serviceSuggestions" role="listbox" style="display:none;position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #183d2a18;max-height:240px;overflow:auto"></div>
       </div>
       <button class="btn primary search-submit" type="submit">Search <span aria-hidden="true">→</span></button>
     </form>
@@ -1113,6 +1114,46 @@ $('locFilter').addEventListener('input',()=>{
 });
 $('locFilter').addEventListener('keydown',e=>{if(e.key==='Escape')closeHomePlaceSuggestions();if(e.key==='Enter'&&!homePlaceSelected&&$('locFilter').value.trim().toLowerCase()!=='all'){e.preventDefault();const first=$('homeLocationSuggestions').querySelector('button');if(first)first.click();}});
 document.addEventListener('click',e=>{if(!e.target.closest('.search-location-field'))closeHomePlaceSuggestions();});
+
+// Live service suggestions: categories and actual services/providers.
+let serviceSuggestTimer=null;
+function closeServiceSuggestions(){const box=$('serviceSuggestions');if(box){box.style.display='none';box.innerHTML='';}$('keyword').setAttribute('aria-expanded','false');}
+function chooseServiceSuggestion(item){
+ if(item.kind==='category'){$('catFilter').value=item.value;$('keyword').value='';}
+ else{$('keyword').value=item.value;}
+ closeServiceSuggestions();render();renderMap();
+}
+$('keyword').addEventListener('input',()=>{
+ clearTimeout(serviceSuggestTimer);
+ const q=$('keyword').value.trim().toLowerCase(),box=$('serviceSuggestions');
+ if(!q){closeServiceSuggestions();return;}
+ serviceSuggestTimer=setTimeout(()=>{
+  const choices=[],seen=new Set();
+  const add=(kind,value,detail)=>{
+   const key=kind+'|'+String(value||'').toLowerCase();
+   if(value&&String(value).toLowerCase().includes(q)&&!seen.has(key)){seen.add(key);choices.push({kind,value,detail});}
+  };
+  serviceCategories.forEach(c=>add('category',c.name,'Service category'));
+  data.forEach(p=>{add('service',p.service,'Service');add('provider',p.name,'Provider');add('category',p.category,'Service category');});
+  const matches=choices.filter(x=>x.value.toLowerCase().includes(q)).slice(0,8);
+  box.innerHTML='';
+  matches.forEach(item=>{
+   const b=document.createElement('button');b.type='button';b.role='option';
+   b.style.cssText='display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer';
+   b.innerHTML='<strong>'+esc(item.value)+'</strong><span class="place-detail" style="display:block">'+esc(item.detail)+'</span>';
+   b.addEventListener('click',()=>chooseServiceSuggestion(item));box.appendChild(b);
+  });
+  if(!box.children.length)box.innerHTML='<div style="padding:10px 12px;color:var(--muted);font-size:12px">No matching service found. You can still search using this text.</div>';
+  box.style.display='block';$('keyword').setAttribute('aria-expanded','true');
+ },80);
+});
+$('keyword').addEventListener('keydown',e=>{
+ if(e.key==='Escape')closeServiceSuggestions();
+ if(e.key==='Enter'&&$('serviceSuggestions').style.display==='block'){
+  const first=$('serviceSuggestions').querySelector('button');if(first){e.preventDefault();first.click();}
+ }
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.search-keyword-field'))closeServiceSuggestions();});
 
 $('clearLocation').addEventListener('click',()=>{customerLocation=null;data.forEach(p=>p.distanceKm=null);render();renderMap();$('mapStatus').textContent='Location cleared. Search by district/town or enable location when needed.';});
 
