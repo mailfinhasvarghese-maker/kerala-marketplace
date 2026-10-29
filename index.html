@@ -562,7 +562,7 @@ h1 em{font-style:normal;color:var(--g)}
 const data = [];
 const $ = id => document.getElementById(id);
 let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false, serviceCategories=[], localSearchActive=false;
-const LOCAL_SEARCH_RADIUS_KM=25;
+const LOCAL_SEARCH_RADIUS_KM=5;
 const categoryIconFallback=['🧰','📍','🔧','🏠','🚕','🛠️','🌿','🎪'];
 async function loadCategories(){
   const filter=$('catFilter'),cards=$('categoryCards');
