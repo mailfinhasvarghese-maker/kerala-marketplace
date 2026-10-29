@@ -371,6 +371,8 @@ h1 em{font-style:normal;color:var(--g)}
 @media(max-width:900px){.header-search{width:190px}.links{gap:10px}.links a{font-size:12px}}
 
 #homeLocationSuggestions button{display:block;width:100%;padding:10px 12px;border:0;background:#fff;text-align:left;color:var(--ink);cursor:pointer;font:inherit;border-bottom:1px solid var(--line)}#homeLocationSuggestions button:hover,#homeLocationSuggestions button:focus{background:var(--mint);outline:0}#homeLocationSuggestions .place-detail{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+
+.header-search-wrap{position:relative;flex:1;max-width:520px;min-width:220px}.header-search-wrap .header-search{max-width:none;width:100%;position:relative}.advanced-search-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;height:34px;border:0;border-radius:10px;background:#edf5f0;color:var(--g);cursor:pointer}.advanced-search-toggle:hover,.advanced-search-toggle[aria-expanded="true"]{background:#dcece2}.advanced-search-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.header-search-suggestions{display:none;position:absolute;z-index:2000;left:0;right:0;top:calc(100% + 6px);max-height:320px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px #183d2a20}.header-search-suggestions.open{display:block}.header-search-suggestions button{display:block;width:100%;padding:11px 14px;border:0;border-bottom:1px solid var(--line);background:#fff;text-align:left;cursor:pointer;color:var(--ink);font:inherit}.header-search-suggestions button:hover,.header-search-suggestions button:focus{background:var(--mint);outline:0}.header-search-suggestions small{display:block;color:var(--muted);font-size:12px;margin-top:3px}.advanced-search-panel[hidden]{display:none!important}.advanced-search-panel{padding-top:14px;padding-bottom:14px}.advanced-search-panel .search-caption{display:none}@media(max-width:760px){.header-search-wrap{order:3;flex:1 0 100%;max-width:none;width:100%}.header-search-wrap .header-search{order:initial;max-width:none;width:100%}.header-search-suggestions{top:calc(100% + 5px)}}
 </style>
 </head>
 
@@ -384,10 +386,14 @@ h1 em{font-style:normal;color:var(--g)}
       <span>Nattukaar<small>KERALA LOCAL MARKETPLACE</small></span>
     </a>
     <button class="btn outline search-locally-btn" id="searchLocallyBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><span>Search Locally</span></button>
-    <form class="header-search" id="headerSearchForm" role="search" aria-label="Search services">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 5 5"></path></svg>
-      <input id="headerSearchInput" type="search" placeholder="What are you looking for?" aria-label="What are you looking for?" autocomplete="off">
-    </form>
+    <div class="header-search-wrap">
+      <form class="header-search" id="headerSearchForm" role="search" aria-label="Search services">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 5 5"></path></svg>
+        <input id="headerSearchInput" type="search" placeholder="Search services, providers or locations..." aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions">
+        <button class="advanced-search-toggle" id="advancedSearchToggle" type="button" aria-label="Advanced search" title="Advanced search" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg></button>
+      </form>
+      <div id="headerSearchSuggestions" role="listbox" class="header-search-suggestions"></div>
+    </div>
     <nav class="links">
       <a href="#categories">Categories</a>
       <a href="#providers">Find providers</a>
@@ -409,7 +415,7 @@ h1 em{font-style:normal;color:var(--g)}
   </div>
 </section>
 
-<section class="search" aria-label="Find local services">
+<section class="search advanced-search-panel" id="advancedSearchPanel" aria-label="Advanced search" hidden>
   <div class="wrap">
     <form class="search-box" id="searchForm">
       <div class="field search-service-field">
@@ -1037,11 +1043,30 @@ if(searchLocallyBtn)searchLocallyBtn.addEventListener('click',function(){
  requestCustomerLocation();
  setTimeout(()=>{searchLocallyBtn.disabled=false;searchLocallyBtn.innerHTML=original;},1200);
 });
-const headerSearchForm=$('headerSearchForm'),headerSearchInput=$('headerSearchInput');
+const headerSearchForm=$('headerSearchForm'),headerSearchInput=$('headerSearchInput'),headerSearchSuggestions=$('headerSearchSuggestions');
+const advancedSearchToggle=$('advancedSearchToggle'),advancedSearchPanel=$('advancedSearchPanel');
+function closeHeaderSearchSuggestions(){if(headerSearchSuggestions){headerSearchSuggestions.classList.remove('open');headerSearchSuggestions.innerHTML='';}if(headerSearchInput)headerSearchInput.setAttribute('aria-expanded','false');}
+function runHeaderSearch(value){const q=String(value||'').trim();$('keyword').value=q;$('locFilter').value='all';homePlaceSelected=false;localSearchActive=false;render();renderMap();closeHeaderSearchSuggestions();document.querySelector('#providers')?.scrollIntoView({behavior:'smooth',block:'start'});}
+function chooseHeaderSuggestion(item){headerSearchInput.value=item.value;if(item.kind==='location'){$('locFilter').value=item.value;$('keyword').value='';}else if(item.kind==='category'){$('catFilter').value=item.value;$('keyword').value='';}else{$('keyword').value=item.value;}closeHeaderSearchSuggestions();render();renderMap();document.querySelector('#providers')?.scrollIntoView({behavior:'smooth',block:'start'});}
 if(headerSearchForm&&headerSearchInput){
- headerSearchForm.addEventListener('submit',function(e){e.preventDefault();$('keyword').value=headerSearchInput.value.trim();$('searchForm').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));document.querySelector('#providers')?.scrollIntoView({behavior:'smooth',block:'start'});});
- headerSearchInput.addEventListener('input',function(){ $('keyword').value=headerSearchInput.value; $('keyword').dispatchEvent(new Event('input',{bubbles:true})); });
+ headerSearchForm.addEventListener('submit',function(e){e.preventDefault();runHeaderSearch(headerSearchInput.value);});
+ headerSearchInput.addEventListener('input',function(){
+  const q=headerSearchInput.value.trim().toLowerCase();
+  if(q.length<2){closeHeaderSearchSuggestions();return;}
+  const choices=[],seen=new Set();
+  const add=(kind,value,detail)=>{value=String(value||'').trim();const key=kind+'|'+value.toLowerCase();if(value.toLowerCase().includes(q)&&!seen.has(key)){seen.add(key);choices.push({kind,value,detail});}};
+  serviceCategories.forEach(c=>add('category',c.name,'Service category'));
+  data.forEach(p=>{add('service',p.service,'Service');add('provider',p.name,'Provider');add('category',p.category,'Service category');add('location',p.town,'Provider location');add('location',p.location,'Provider district / location');});
+  const matches=choices.slice(0,10);
+  headerSearchSuggestions.innerHTML='';
+  matches.forEach(item=>{const b=document.createElement('button');b.type='button';b.setAttribute('role','option');b.innerHTML='<strong>'+esc(item.value)+'</strong><small>'+esc(item.detail)+'</small>';b.addEventListener('click',()=>chooseHeaderSuggestion(item));headerSearchSuggestions.appendChild(b);});
+  if(!matches.length){const empty=document.createElement('div');empty.style.cssText='padding:12px 14px;color:var(--muted);font-size:13px';empty.textContent='No exact match yet. Press Enter to search anyway.';headerSearchSuggestions.appendChild(empty);}
+  headerSearchSuggestions.classList.add('open');headerSearchInput.setAttribute('aria-expanded','true');
+ });
+ headerSearchInput.addEventListener('keydown',e=>{if(e.key==='Escape')closeHeaderSearchSuggestions();if(e.key==='ArrowDown'){const first=headerSearchSuggestions.querySelector('button');if(first){e.preventDefault();first.focus();}}});
+ document.addEventListener('click',e=>{if(!e.target.closest('.header-search-wrap'))closeHeaderSearchSuggestions();});
 }
+if(advancedSearchToggle&&advancedSearchPanel){advancedSearchToggle.addEventListener('click',()=>{const opening=advancedSearchPanel.hidden;advancedSearchPanel.hidden=!opening;advancedSearchToggle.setAttribute('aria-expanded',String(opening));if(opening)advancedSearchPanel.scrollIntoView({behavior:'smooth',block:'nearest'});});}
 $('authOpen').addEventListener('click',function(){currentAccount?openAccount():openAuth('login');});
 const accountOpenButton=$('accountOpen'); if(accountOpenButton)accountOpenButton.addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();if(currentAccount&&currentAccount.role==='provider'){location.href='/provider-dashboard.html';return;}openAccount();});
 $('authClose').addEventListener('click',closeAuth);
@@ -1101,11 +1126,23 @@ $('locFilter').addEventListener('input',()=>{
    const response=await fetch(url,{signal:homePlaceController.signal,headers:{'Accept-Language':'en'}});
    if(!response.ok)throw new Error('Place search unavailable');
    const places=await response.json();box.innerHTML='';
+   const shown=new Set();
    places.filter(p=>/kerala/i.test(p.display_name)).forEach((place)=>{
     const label=place.display_name.split(',').slice(0,3).join(', ');
+    const key=label.toLowerCase();if(shown.has(key))return;shown.add(key);
     const a=document.createElement('button');a.type='button';a.role='option';
     a.innerHTML='<strong>'+esc(label)+'</strong><span class="place-detail">Map location · '+esc(place.type||'place')+'</span>';
     a.addEventListener('click',()=>selectHomePlace(place));box.appendChild(a);
+   });
+   // Include known provider towns/districts so a provider location is suggested even if map geocoding is slow or has no result.
+   const providerPlaces=new Map();
+   data.forEach(p=>[p.town,p.location].forEach(value=>{const name=String(value||'').trim();if(name.toLowerCase().includes(q.toLowerCase())&&name.length>1&&!providerPlaces.has(name.toLowerCase()))providerPlaces.set(name.toLowerCase(),name);}));
+   providerPlaces.forEach(name=>{
+    if(shown.has(name.toLowerCase()))return;shown.add(name.toLowerCase());
+    const a=document.createElement('button');a.type='button';a.role='option';
+    a.innerHTML='<strong>'+esc(name)+'</strong><span class="place-detail">Location from an active provider</span>';
+    a.addEventListener('click',()=>{ $('locFilter').value=name;homePlaceSelected=true;closeHomePlaceSuggestions();localSearchActive=false;customerLocation=null;render();renderMap();});
+    box.appendChild(a);
    });
    if(!box.children.length){box.innerHTML='<div style="padding:10px 12px;color:var(--muted);font-size:12px">No matching places found. Try another town or locality.</div>';}
    box.style.display='block';$('locFilter').setAttribute('aria-expanded','true');
