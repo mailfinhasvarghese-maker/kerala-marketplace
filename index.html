@@ -727,11 +727,27 @@ h1 em{font-style:normal;color:var(--g)}
   if(root.nodeType===Node.ELEMENT_NODE)translateAttributes(root,toMalayalam);
   root.querySelectorAll?.("input,textarea,button,[aria-label],[title]").forEach(el=>translateAttributes(el,toMalayalam));
  }
- function setLanguage(lang){
+ function renderCategoryLanguage(){
+ if(!Array.isArray(serviceCategories)||!serviceCategories.length)return;
+ const ml=currentLanguage==="ml",filter=$('catFilter'),cards=$('categoryCards');
+ if(filter){
+  const selected=filter.value||"all";filter.innerHTML="";
+  const allOption=document.createElement("option");allOption.value="all";allOption.textContent=ml?"എല്ലാ സേവനങ്ങളും":"All services";filter.appendChild(allOption);
+  serviceCategories.forEach(c=>{const option=document.createElement("option");option.value=c.name;option.textContent=ml?(c.name_ml||c.name):c.name;filter.appendChild(option);});
+  filter.value=selected;
+ }
+ if(cards){
+  cards.innerHTML="";
+  serviceCategories.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat=c.name;const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=ml?(c.name_ml||c.name):c.name;const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":(c.description||"Explore local providers");b.append(icon,title,desc);cards.appendChild(b);});
+  const all=document.createElement("button");all.type="button";all.className="category";all.dataset.cat="all";all.innerHTML='<span class="cat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><strong>'+(ml?"എല്ലാ സേവനങ്ങളും":"All services")+'</strong><small>'+(ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":"Explore every category")+'</small>';cards.appendChild(all);
+ }
+}
+function setLanguage(lang){
   currentLanguage=lang==="ml"?"ml":"en";
   document.documentElement.lang=currentLanguage;
   document.documentElement.setAttribute("data-language",currentLanguage);
   translateTree(document.body,currentLanguage==="ml");
+  renderCategoryLanguage();
   const button=document.getElementById("languageToggle");
   if(button){
    button.textContent=currentLanguage==="ml"?"English":"മലയാളം";
@@ -777,11 +793,7 @@ async function loadCategories(){
     const result=await response.json();
     if(!response.ok)throw new Error(result.error||'Could not load categories');
     serviceCategories=Array.isArray(result.categories)?result.categories:[];
-    filter.innerHTML='<option value="all">All services</option>';
-    serviceCategories.forEach(c=>{const option=document.createElement('option');option.value=c.name;option.textContent=c.name;filter.appendChild(option);});
-    cards.innerHTML='';
-    serviceCategories.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='category';b.dataset.cat=c.name;const icon=document.createElement('span');icon.className='cat-icon';icon.innerHTML=categoryIconSvg(c);const title=document.createElement('strong');title.textContent=c.name;const desc=document.createElement('small');desc.textContent=c.description||'Explore local providers';b.append(icon,title,desc);cards.appendChild(b);});
-    const all=document.createElement('button');all.type='button';all.className='category';all.dataset.cat='all';all.innerHTML='<span class="cat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><strong>All services</strong><small>Explore every category</small>';cards.appendChild(all);
+    renderCategoryLanguage();
   }catch(error){console.error('Category loading failed:',error);}
 }
 function distanceKm(a,b){const rad=x=>x*Math.PI/180;const dLat=rad(b.lat-a.lat),dLon=rad(b.lng-a.lng);const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
