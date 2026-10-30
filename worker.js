@@ -366,7 +366,7 @@ export default {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const body=await request.json();
         const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100;
-        if(icon!=="grid"&&(!icon.startsWith("data:image/png;base64,")||icon.length>82000||!/^data:image\\/png;base64,[A-Za-z0-9+/]+=*$/.test(icon)))return respond({error:"Category icon must be a PNG image no larger than 60 KB."},400);
+        if(icon!=="grid"&&(!icon.startsWith("data:image/png;base64,")||icon.length>82000||!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(icon)))return respond({error:"Category icon must be a PNG image no larger than 60 KB."},400);
         const slug=String(body.slug||name).trim().toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
         if(!name||!slug)return respond({error:"Category name is required."},400);
         try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,slug=?,description=?,icon=?,active=?,sort_order=? WHERE id=?").bind(name,slug,description,icon,active,sortOrder,id).run(); else await env.DB.prepare("INSERT INTO categories (name,slug,description,icon,active,sort_order) VALUES (?,?,?,?,?,?)").bind(name,slug,description,icon,active,sortOrder).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
