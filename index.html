@@ -555,7 +555,7 @@ h1 em{font-style:normal;color:var(--g)}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-/* Nattukaar language switch: English / Malayalam */
+/* Nattukaar language switch: persistent English / Malayalam */
 (function(){
  const translations = {
   "Kerala’s local services marketplace":"കേരളത്തിന്റെ പ്രാദേശിക സേവന വിപണി",
@@ -700,54 +700,63 @@ h1 em{font-style:normal;color:var(--g)}
   "Search a town, locality or district":"നഗരം, പ്രദേശം അല്ലെങ്കിൽ ജില്ല തിരയുക",
   "Start typing a service...":"ഒരു സേവനത്തിന്റെ പേര് ടൈപ്പ് ചെയ്യുക..."
  };
- const originals = new WeakMap();
  let currentLanguage="en";
- function translateTree(root, toMalayalam){
+ const reverseTranslations=Object.fromEntries(Object.entries(translations).map(([en,ml])=>[ml,en]));
+ function replaceText(node,toMalayalam){
+  if(!node||node.nodeType!==Node.TEXT_NODE)return;
+  const value=node.nodeValue, trimmed=value.trim();
+  if(!trimmed)return;
+  const leading=value.match(/^\\s*/)?.[0]||"", trailing=value.match(/\\s*$/)?.[0]||"";
+  const translated=toMalayalam?translations[trimmed]:reverseTranslations[trimmed];
+  if(translated&&translated!==trimmed)node.nodeValue=leading+translated+trailing;
+ }
+ function translateAttributes(root,toMalayalam){
+  if(!root||root.nodeType!==Node.ELEMENT_NODE)return;
+  const elements=[root,...root.querySelectorAll("input,textarea,button,[aria-label],[title]")];
+  elements.forEach(el=>["placeholder","aria-label","title"].forEach(name=>{
+   if(!el.hasAttribute(name))return;
+   const value=el.getAttribute(name);
+   const translated=toMalayalam?(attrMap[value]||translations[value]):(reverseTranslations[value]||reverseTranslations[attrMap[value]]);
+   if(translated&&translated!==value)el.setAttribute(name,translated);
+  }));
+ }
+ function translateTree(root,toMalayalam){
+  if(!root)return;
   const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-  let node;
-  while((node=walker.nextNode())){
-   if(!originals.has(node)) originals.set(node,node.nodeValue);
-   const original=originals.get(node).trim();
-   if(!original) continue;
-   const translated=translations[original];
-   if(translated) node.nodeValue=toMalayalam?node.nodeValue.replace(original,translated):node.nodeValue.replace(translated,original);
-  }
-  root.querySelectorAll?.("input,textarea,button,[aria-label],[title]").forEach(el=>{
-   ["placeholder","aria-label","title"].forEach(attr=>{
-    if(!el.hasAttribute(attr))return;
-    const value=el.getAttribute(attr);
-    if(!el.dataset["langOriginal"+attr])el.dataset["langOriginal"+attr]=value;
-    const original=el.dataset["langOriginal"+attr];
-    if(toMalayalam)el.setAttribute(attr,attrMap[original]||translations[original]||original);
-    else el.setAttribute(attr,original);
-   });
-  });
+  let node;while((node=walker.nextNode()))replaceText(node,toMalayalam);
+  if(root.nodeType===Node.ELEMENT_NODE)translateAttributes(root,toMalayalam);
+  root.querySelectorAll?.("input,textarea,button,[aria-label],[title]").forEach(el=>translateAttributes(el,toMalayalam));
  }
  function setLanguage(lang){
-  currentLanguage=lang;
-  document.documentElement.lang=lang==="ml"?"ml":"en";
-  translateTree(document.body,lang==="ml");
+  currentLanguage=lang==="ml"?"ml":"en";
+  document.documentElement.lang=currentLanguage;
+  document.documentElement.setAttribute("data-language",currentLanguage);
+  translateTree(document.body,currentLanguage==="ml");
   const button=document.getElementById("languageToggle");
-  if(button){button.textContent=lang==="ml"?"English":"മലയാളം";button.setAttribute("aria-label",lang==="ml"?"Switch to English":"മലയാളത്തിലേക്ക് മാറുക");}
-  try{localStorage.setItem("nattukaar-language",lang);}catch(e){}
+  if(button){
+   button.textContent=currentLanguage==="ml"?"English":"മലയാളം";
+   button.setAttribute("aria-label",currentLanguage==="ml"?"Switch to English":"മലയാളത്തിലേക്ക് മാറുക");
+   button.setAttribute("title",currentLanguage==="ml"?"Switch to English":"മലയാളത്തിലേക്ക് മാറുക");
+  }
+  try{localStorage.setItem("nattukaar-language",currentLanguage);}catch(e){}
  }
- document.addEventListener("click",e=>{
-  if(e.target.closest("#languageToggle"))setLanguage(currentLanguage==="en"?"ml":"en");
- });
- const observer=new MutationObserver(records=>{
-  if(currentLanguage!=="ml")return;
-  records.forEach(record=>record.addedNodes.forEach(node=>{
-   if(node.nodeType===Node.ELEMENT_NODE)translateTree(node,true);
-   else if(node.nodeType===Node.TEXT_NODE){
-    const original=node.nodeValue.trim();
-    if(translations[original])node.nodeValue=node.nodeValue.replace(original,translations[original]);
-   }
-  }));
- });
- observer.observe(document.body,{childList:true,subtree:true});
- try{if(localStorage.getItem("nattukaar-language")==="ml")setLanguage("ml");}catch(e){}
-})();
-</script>
+ window.nattukaarSetLanguage=setLanguage;
+ document.addEventListener("click",event=>{
+  const button=event.target.closest("#languageToggle");
+  if(button){event.preventDefault();setLanguage(currentLanguage==="ml"?"en":"ml");}
+ },true);
+ const observer=new MutationObserver(records=>records.forEach(record=>{
+  if(record.type==="characterData"){replaceText(record.target,currentLanguage==="ml");return;}
+  record.addedNodes.forEach(node=>{
+   if(node.nodeType===Node.TEXT_NODE)replaceText(node,currentLanguage==="ml");
+   else if(node.nodeType===Node.ELEMENT_NODE)translateTree(node,currentLanguage==="ml");
+  });
+ }));
+ observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+ let savedLanguage="en";
+ try{savedLanguage=localStorage.getItem("nattukaar-language")==="ml"?"ml":"en";}catch(e){}
+ setLanguage(savedLanguage);
+})();</script>
 
 <script>
 const data = [];
