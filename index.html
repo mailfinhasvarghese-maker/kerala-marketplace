@@ -396,6 +396,7 @@ h1 em{font-style:normal;color:var(--g)}
       </form>
       <div id="headerSearchSuggestions" role="listbox" class="header-search-suggestions"></div>
     </div>
+    <button class="btn outline" id="languageToggle" type="button" aria-label="Switch language">മലയാളം</button>
     <nav class="links">
       <a href="#categories">Categories</a>
       <a href="#providers">Find providers</a>
@@ -555,6 +556,133 @@ h1 em{font-style:normal;color:var(--g)}
 <div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* Nattukaar language switch: English / Malayalam */
+(function(){
+ const translations = {
+  "Kerala’s local services marketplace":"കേരളത്തിന്റെ പ്രാദേശിക സേവന വിപണി",
+  "Discover · Compare · Contact":"കണ്ടെത്തുക · താരതമ്യം ചെയ്യുക · ബന്ധപ്പെടുക",
+  "Search Locally":"പ്രാദേശികമായി തിരയുക",
+  "Search services":"സേവനങ്ങൾ തിരയുക",
+  "Search services, providers or locations...":"സേവനങ്ങൾ, സേവനദാതാക്കൾ അല്ലെങ്കിൽ സ്ഥലങ്ങൾ തിരയുക...",
+  "Advanced search":"വിപുലമായ തിരച്ചിൽ",
+  "Categories":"വിഭാഗങ്ങൾ",
+  "Find providers":"സേവനദാതാക്കളെ കണ്ടെത്തുക",
+  "How it works":"ഇത് എങ്ങനെ പ്രവർത്തിക്കുന്നു",
+  "Customer sign in":"ഉപഭോക്തൃ ലോഗിൻ",
+  "LOCAL SERVICES, MADE SIMPLE":"പ്രാദേശിക സേവനങ്ങൾ ഇനി എളുപ്പത്തിൽ",
+  "Find trusted services":"വിശ്വസനീയമായ സേവനങ്ങൾ കണ്ടെത്തൂ",
+  "near you.":"നിങ്ങൾക്ക് സമീപം.",
+  "Discover local taxi providers, rentals, skilled workers and service professionals across Kerala.":"കേരളത്തിലുടനീളമുള്ള ടാക്സി സേവനങ്ങൾ, വാടക സേവനങ്ങൾ, വിദഗ്ധ തൊഴിലാളികൾ, മറ്റ് സേവനദാതാക്കൾ എന്നിവരെ കണ്ടെത്തൂ.",
+  "＋ Join as a provider":"＋ സേവനദാതാവായി ചേരുക",
+  "BROWSE BY CATEGORY":"വിഭാഗം അനുസരിച്ച് തിരയുക",
+  "What can we help you find?":"നിങ്ങൾക്ക് എന്താണ് വേണ്ടത്?",
+  "Start with a service category, then compare providers.":"ഒരു സേവന വിഭാഗം തിരഞ്ഞെടുക്കുക, തുടർന്ന് സേവനദാതാക്കളെ താരതമ്യം ചെയ്യുക.",
+  "All services":"എല്ലാ സേവനങ്ങളും",
+  "Explore every category":"എല്ലാ വിഭാഗങ്ങളും കാണുക",
+  "Providers near you":"നിങ്ങൾക്ക് സമീപമുള്ള സേവനദാതാക്കൾ",
+  "Allow location to sort providers by distance, or search by district.":"ദൂരമനുസരിച്ച് സേവനദാതാക്കളെ ക്രമീകരിക്കാൻ ലൊക്കേഷൻ അനുവദിക്കുക, അല്ലെങ്കിൽ ജില്ല തിരയുക.",
+  "Use my current location":"എന്റെ നിലവിലെ സ്ഥലം ഉപയോഗിക്കുക",
+  "Clear location":"സ്ഥലം നീക്കുക",
+  "Providers on the map":"മാപ്പിലെ സേവനദാതാക്കൾ",
+  "Loading":"ലോഡ് ചെയ്യുന്നു",
+  "Loading local providers…":"പ്രാദേശിക സേവനദാതാക്കളെ ലോഡ് ചെയ്യുന്നു…",
+  "DISCOVER LOCAL PROVIDERS":"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക",
+  "Providers to explore":"പരിശോധിക്കാവുന്ന സേവനദാതാക്കൾ",
+  "Active providers registered on Nattukaar.":"നാട്ടുകാരിൽ രജിസ്റ്റർ ചെയ്ത സജീവ സേവനദാതാക്കൾ.",
+  "Clear filters ↺":"ഫിൽട്ടറുകൾ നീക്കുക ↺",
+  "SIMPLE BY DESIGN":"ലളിതമായ സംവിധാനം",
+  "How Nattukaar works":"നാട്ടുകാർ എങ്ങനെ പ്രവർത്തിക്കുന്നു",
+  "A browse-first approach that puts the choice in your hands.":"നിങ്ങൾക്ക് അനുയോജ്യമായ സേവനം തിരഞ്ഞെടുക്കാൻ സഹായിക്കുന്ന സംവിധാനം.",
+  "Choose a provider":"ഒരു സേവനദാതാവിനെ തിരഞ്ഞെടുക്കുക",
+  "Browse profiles by service and location. Compare experience, services offered and customer feedback.":"സേവനവും സ്ഥലവും അനുസരിച്ച് പ്രൊഫൈലുകൾ കാണുക. പരിചയം, സേവനങ്ങൾ, ഉപഭോക്തൃ അഭിപ്രായങ്ങൾ എന്നിവ താരതമ്യം ചെയ്യുക.",
+  "Send a booking request":"ബുക്കിംഗ് അഭ്യർത്ഥന അയയ്ക്കുക",
+  "Share the date, location and details of the work you need. The provider can respond to your request.":"ആവശ്യമായ തീയതി, സ്ഥലം, ജോലിയുടെ വിവരങ്ങൾ എന്നിവ നൽകുക. സേവനദാതാവ് മറുപടി നൽകും.",
+  "Confirm directly":"നേരിട്ട് ഉറപ്പാക്കുക",
+  "Discuss availability and final pricing before confirming. Your request is saved for review. The provider can contact you to discuss availability and pricing.":"ഉറപ്പാക്കുന്നതിന് മുമ്പ് ലഭ്യതയും അന്തിമ നിരക്കും ചർച്ച ചെയ്യുക. നിങ്ങളുടെ അഭ്യർത്ഥന പരിശോധനയ്ക്കായി സൂക്ഷിക്കും.",
+  "Offer a service in your area?":"നിങ്ങളുടെ പ്രദേശത്ത് സേവനം നൽകുന്നുണ്ടോ?",
+  "Build your profile so local customers can discover what you do.":"പ്രാദേശിക ഉപഭോക്താക്കൾക്ക് നിങ്ങളെ കണ്ടെത്താൻ പ്രൊഫൈൽ സൃഷ്ടിക്കുക.",
+  "Register as a provider →":"സേവനദാതാവായി രജിസ്റ്റർ ചെയ്യുക →",
+  "Designed for Kerala · Mobile-friendly preview":"കേരളത്തിനായി രൂപകൽപ്പന ചെയ്തത് · മൊബൈലിനും അനുയോജ്യം",
+  "Request a booking":"ബുക്കിംഗ് അഭ്യർത്ഥിക്കുക",
+  "Share a few details to get started.":"ആരംഭിക്കാൻ ആവശ്യമായ കുറച്ച് വിവരങ്ങൾ നൽകുക.",
+  "Cancel":"റദ്ദാക്കുക",
+  "Submit booking request":"ബുക്കിംഗ് അഭ്യർത്ഥന സമർപ്പിക്കുക",
+  "Your submission will be saved for review. Share only the contact and service details needed for this request.":"നിങ്ങളുടെ അഭ്യർത്ഥന പരിശോധനയ്ക്കായി സൂക്ഷിക്കും. ആവശ്യമായ ബന്ധപ്പെടൽ വിവരങ്ങളും സേവന വിവരങ്ങളും മാത്രം നൽകുക.",
+  "PROVIDER PROFILE":"സേവനദാതാവിന്റെ പ്രൊഫൈൽ",
+  "Close profile":"പ്രൊഫൈൽ അടയ്ക്കുക",
+  "Sign in":"ലോഗിൻ ചെയ്യുക",
+  "Use your email and password.":"ഇമെയിലും പാസ്‌വേഡും ഉപയോഗിക്കുക.",
+  "Create account":"അക്കൗണ്ട് സൃഷ്ടിക്കുക",
+  "New passwords must be at least 10 characters.":"പുതിയ പാസ്‌വേഡിന് കുറഞ്ഞത് 10 അക്ഷരങ്ങൾ വേണം.",
+  "My bookings":"എന്റെ ബുക്കിംഗുകൾ",
+  "Sign out":"ലോഗ് ഔട്ട് ചെയ്യുക",
+  "Service":"സേവനം",
+  "Town / locality":"നഗരം / പ്രദേശം",
+  "Search a town, locality or district":"നഗരം, പ്രദേശം അല്ലെങ്കിൽ ജില്ല തിരയുക",
+  "Choose a suggested place to search nearby providers.":"സമീപമുള്ള സേവനദാതാക്കളെ കണ്ടെത്താൻ നിർദ്ദേശിച്ച സ്ഥലം തിരഞ്ഞെടുക്കുക.",
+  "What are you looking for?":"നിങ്ങൾ എന്താണ് തിരയുന്നത്?",
+  "Start typing a service...":"ഒരു സേവനത്തിന്റെ പേര് ടൈപ്പ് ചെയ്യുക...",
+  "Search":"തിരയുക",
+  "AI-powered discovery":"AI സഹായത്തോടെയുള്ള കണ്ടെത്തൽ",
+  "Find services across Kerala":"കേരളത്തിലുടനീളം സേവനങ്ങൾ കണ്ടെത്തുക"
+ };
+ const attrMap = {
+  "Search services, providers or locations...":"സേവനങ്ങൾ, സേവനദാതാക്കൾ അല്ലെങ്കിൽ സ്ഥലങ്ങൾ തിരയുക...",
+  "Search services, providers or locations":"സേവനങ്ങൾ, സേവനദാതാക്കൾ അല്ലെങ്കിൽ സ്ഥലങ്ങൾ തിരയുക",
+  "Search a town, locality or district":"നഗരം, പ്രദേശം അല്ലെങ്കിൽ ജില്ല തിരയുക",
+  "Start typing a service...":"ഒരു സേവനത്തിന്റെ പേര് ടൈപ്പ് ചെയ്യുക..."
+ };
+ const originals = new WeakMap();
+ let currentLanguage="en";
+ function translateTree(root, toMalayalam){
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  let node;
+  while((node=walker.nextNode())){
+   if(!originals.has(node)) originals.set(node,node.nodeValue);
+   const original=originals.get(node).trim();
+   if(!original) continue;
+   const translated=translations[original];
+   if(translated) node.nodeValue=toMalayalam?node.nodeValue.replace(original,translated):node.nodeValue.replace(translated,original);
+  }
+  root.querySelectorAll?.("input,textarea,button,[aria-label],[title]").forEach(el=>{
+   ["placeholder","aria-label","title"].forEach(attr=>{
+    if(!el.hasAttribute(attr))return;
+    const value=el.getAttribute(attr);
+    if(!el.dataset["langOriginal"+attr])el.dataset["langOriginal"+attr]=value;
+    const original=el.dataset["langOriginal"+attr];
+    if(toMalayalam)el.setAttribute(attr,attrMap[original]||translations[original]||original);
+    else el.setAttribute(attr,original);
+   });
+  });
+ }
+ function setLanguage(lang){
+  currentLanguage=lang;
+  document.documentElement.lang=lang==="ml"?"ml":"en";
+  translateTree(document.body,lang==="ml");
+  const button=document.getElementById("languageToggle");
+  if(button){button.textContent=lang==="ml"?"English":"മലയാളം";button.setAttribute("aria-label",lang==="ml"?"Switch to English":"മലയാളത്തിലേക്ക് മാറുക");}
+  try{localStorage.setItem("nattukaar-language",lang);}catch(e){}
+ }
+ document.addEventListener("click",e=>{
+  if(e.target.closest("#languageToggle"))setLanguage(currentLanguage==="en"?"ml":"en");
+ });
+ const observer=new MutationObserver(records=>{
+  if(currentLanguage!=="ml")return;
+  records.forEach(record=>record.addedNodes.forEach(node=>{
+   if(node.nodeType===Node.ELEMENT_NODE)translateTree(node,true);
+   else if(node.nodeType===Node.TEXT_NODE){
+    const original=node.nodeValue.trim();
+    if(translations[original])node.nodeValue=node.nodeValue.replace(original,translations[original]);
+   }
+  }));
+ });
+ observer.observe(document.body,{childList:true,subtree:true});
+ try{if(localStorage.getItem("nattukaar-language")==="ml")setLanguage("ml");}catch(e){}
+})();
+</script>
+
 <script>
 const data = [];
 const $ = id => document.getElementById(id);
