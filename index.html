@@ -60,7 +60,7 @@ h1 em{font-style:normal;color:var(--g)}
 .categories{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
 .category{background:white;border:1px solid var(--line);border-radius:16px;padding:16px 12px;text-align:left;min-height:128px;color:var(--ink)}
 .category:hover,.category.active{border-color:#8bbda0;background:#f0f8f3}
-.cat-icon{width:43px;height:43px;border-radius:13px;background:#edf6ef;display:grid;place-items:center;font-size:22px;margin-bottom:12px}
+.cat-icon{width:43px;height:43px;border-radius:13px;background:#edf6ef;color:#176b4d;display:grid;place-items:center;margin-bottom:12px;flex:0 0 auto}.cat-icon svg{width:22px;height:22px;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .category strong{display:block;font-size:12px}
 .category small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
 .providers{background:#fff;border-block:1px solid var(--line)}
@@ -296,7 +296,7 @@ h1 em{font-style:normal;color:var(--g)}
 #categories .head p,#categories .head .eyebrow{display:none}
 .categories{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 0 8px}
 .category{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-height:38px;padding:9px 13px;border-radius:10px;text-align:center;white-space:nowrap}
-.cat-icon{display:none}
+.cat-icon{display:grid;width:24px;height:24px;border-radius:7px;margin:0}.cat-icon svg{width:15px;height:15px}
 .category strong{font-size:12px}
 .category small{display:none}
 .category.active{background:#176b4d;color:#fff;border-color:#176b4d}
@@ -451,7 +451,7 @@ h1 em{font-style:normal;color:var(--g)}
       </div>
     </div>
     <div class="categories" id="categoryCards">
-      <button class="category" data-cat="all"><span class="cat-icon">✳️</span><strong>All services</strong><small>Explore every category</small></button>
+      <button class="category" data-cat="all"><span class="cat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><strong>All services</strong><small>Explore every category</small></button>
     </div>
   </div>
 </section>
@@ -763,7 +763,22 @@ const data = [];
 const $ = id => document.getElementById(id);
 let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false, serviceCategories=[], localSearchActive=false;
 const LOCAL_SEARCH_RADIUS_KM=5;
-const categoryIconFallback=['🧰','📍','🔧','🏠','🚕','🛠️','🌿','🎪'];
+function categoryIconSvg(category){
+  const key=String(category.slug||category.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  const icons={
+    'taxi-transportation':'<path d="M5 17h14l1-6-2-5H6l-2 5 1 6Z"/><path d="M7 17v2m10-2v2M4 11h16M8 6l1-3h6l1 3"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/>',
+    'taxi':'<path d="M5 17h14l1-6-2-5H6l-2 5 1 6Z"/><path d="M7 17v2m10-2v2M4 11h16M8 6l1-3h6l1 3"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/>',
+    'item-equipment-rentals':'<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9"/>',
+    'rentals':'<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9"/>',
+    'labour-skilled-workers':'<path d="M3 18h18l-2-9H5l-2 9Z"/><path d="M8 9V6a4 4 0 0 1 8 0v3M3 18v3m18-3v3M9 13h6"/>',
+    'workers':'<path d="M3 18h18l-2-9H5l-2 9Z"/><path d="M8 9V6a4 4 0 0 1 8 0v3M3 18v3m18-3v3M9 13h6"/>',
+    'home-business-services':'<path d="m3 11 9-8 9 8"/><path d="M5 10v11h14V10M9 21v-7h6v7"/>',
+    'home-services':'<path d="m3 11 9-8 9 8"/><path d="M5 10v11h14V10M9 21v-7h6v7"/>',
+    'events':'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h3m2 0h3m-8 3h3"/>'
+  };
+  const path=icons[key]||'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>';
+  return '<svg viewBox="0 0 24 24" role="img" aria-label="'+String(category.name||'Category').replace(/[&<>"]/g,'')+' icon">'+path+'</svg>';
+}
 async function loadCategories(){
   const filter=$('catFilter'),cards=$('categoryCards');
   try{
@@ -774,8 +789,8 @@ async function loadCategories(){
     filter.innerHTML='<option value="all">All services</option>';
     serviceCategories.forEach(c=>{const option=document.createElement('option');option.value=c.name;option.textContent=c.name;filter.appendChild(option);});
     cards.innerHTML='';
-    serviceCategories.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='category';b.dataset.cat=c.name;const icon=document.createElement('span');icon.className='cat-icon';icon.textContent=c.icon||categoryIconFallback[i%categoryIconFallback.length];const title=document.createElement('strong');title.textContent=c.name;const desc=document.createElement('small');desc.textContent=c.description||'Explore local providers';b.append(icon,title,desc);cards.appendChild(b);});
-    const all=document.createElement('button');all.type='button';all.className='category';all.dataset.cat='all';all.innerHTML='<span class="cat-icon">✳️</span><strong>All services</strong><small>Explore every category</small>';cards.appendChild(all);
+    serviceCategories.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.className='category';b.dataset.cat=c.name;const icon=document.createElement('span');icon.className='cat-icon';icon.innerHTML=categoryIconSvg(c);const title=document.createElement('strong');title.textContent=c.name;const desc=document.createElement('small');desc.textContent=c.description||'Explore local providers';b.append(icon,title,desc);cards.appendChild(b);});
+    const all=document.createElement('button');all.type='button';all.className='category';all.dataset.cat='all';all.innerHTML='<span class="cat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><strong>All services</strong><small>Explore every category</small>';cards.appendChild(all);
   }catch(error){console.error('Category loading failed:',error);}
 }
 function distanceKm(a,b){const rad=x=>x*Math.PI/180;const dLat=rad(b.lat-a.lat),dLon=rad(b.lng-a.lng);const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
