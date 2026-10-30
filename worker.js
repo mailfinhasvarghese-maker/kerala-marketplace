@@ -34,10 +34,10 @@ async function ensureSchema(db) {
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_booking_unique ON customer_reviews(booking_request_id) WHERE booking_request_id IS NOT NULL").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS job_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, permissions_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS staff_access (account_id INTEGER PRIMARY KEY, job_role_id INTEGER, is_main_admin INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id), FOREIGN KEY(job_role_id) REFERENCES job_roles(id))").run();
-  await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT '🧰', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT 'grid', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   const catInfo = await db.prepare("PRAGMA table_info(categories)").all();
   const catCols = new Set((catInfo.results || []).map(x => x.name));
-  for (const [n,t] of [["description","TEXT"],["icon","TEXT DEFAULT '🧰'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
+  for (const [n,t] of [["description","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
 }
 async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
@@ -365,7 +365,7 @@ export default {
       if (path === "/api/admin/categories" && request.method === "POST") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const body=await request.json();
-        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"🧰").trim().slice(0,12), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100;
+        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim().slice(0,40), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100;
         const slug=String(body.slug||name).trim().toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
         if(!name||!slug)return respond({error:"Category name is required."},400);
         try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,slug=?,description=?,icon=?,active=?,sort_order=? WHERE id=?").bind(name,slug,description,icon,active,sortOrder,id).run(); else await env.DB.prepare("INSERT INTO categories (name,slug,description,icon,active,sort_order) VALUES (?,?,?,?,?,?)").bind(name,slug,description,icon,active,sortOrder).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
