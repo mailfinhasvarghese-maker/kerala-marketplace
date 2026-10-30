@@ -706,7 +706,7 @@ h1 em{font-style:normal;color:var(--g)}
   if(!node||node.nodeType!==Node.TEXT_NODE)return;
   const value=node.nodeValue, trimmed=value.trim();
   if(!trimmed)return;
-  const leading=value.match(/^\\s*/)?.[0]||"", trailing=value.match(/\\s*$/)?.[0]||"";
+  const leading=value.match(/^\s*/)?.[0]||"", trailing=value.match(/\s*$/)?.[0]||"";
   const translated=toMalayalam?translations[trimmed]:reverseTranslations[trimmed];
   if(translated&&translated!==trimmed)node.nodeValue=leading+translated+trailing;
  }
