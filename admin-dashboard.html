@@ -58,4 +58,6 @@ $('categoryForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,
 $('roleForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=Object.fromEntries(new FormData(f));b.permissions=selectedPermissions();try{const d=await api('/api/admin/job-roles',{method:b.id?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});say('roleStatus',d.message,true);resetForm('roleForm');renderPermissions();await loadRoles();}catch(err){say('roleStatus',err.message);}};
 $('staffForm').onsubmit=async e=>{e.preventDefault();const b=Object.fromEntries(new FormData(e.currentTarget));try{const d=await api('/api/admin/staff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});say('staffStatus',d.message,true);e.currentTarget.reset();}catch(err){say('staffStatus',err.message);}};
 $('categoryReset').onclick=()=>{resetForm('categoryForm');$('categoryIcon').value='';$('categoryIconFile').value='';updateCategoryIconPreview();};$('roleReset').onclick=()=>{resetForm('roleForm');renderPermissions();};$('home').onclick=()=>location.href='/';$('goHome').onclick=()=>location.href='/';$('signout').onclick=async()=>{try{await api('/api/auth/logout',{method:'POST'});}catch(e){}localStorage.removeItem('nattukaar_token');location.href='/';};updateCategoryIconPreview();init();
-</script></body></html>
+</script><script src="/nattukaar-i18n.js"></script>
+</body>
+</html>
