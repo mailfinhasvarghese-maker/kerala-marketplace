@@ -216,4 +216,6 @@ function bindActions(){
 $('refreshBtn').addEventListener('click',loadBookings);$('jumpBookings').addEventListener('click',()=>$('bookings').scrollIntoView({behavior:'smooth'}));
 $('signOut').addEventListener('click',async()=>{try{await jsonFetch('/api/auth/logout',{method:'POST'});}catch(e){}localStorage.removeItem('nattukaar_token');location.href='/';});
 init();
-</script></body></html>
+</script><script src="/nattukaar-i18n.js"></script>
+</body>
+</html>
