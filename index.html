@@ -397,7 +397,7 @@ h1 em{font-style:normal;color:var(--g)}
       </form>
       <div id="headerSearchSuggestions" role="listbox" class="header-search-suggestions"></div>
     </div>
-    <button class="btn outline" id="languageToggle" type="button" aria-label="Switch language">മലയാളം</button>
+    <select class="btn outline" id="languageToggle" aria-label="Choose language" title="Choose language"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select>
     <nav class="links">
       <button class="auth-open-btn" id="authOpen" type="button" aria-label="Customer sign in" title="Customer sign in"><span id="authButtonLabel">Customer sign in</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></button>
     </nav>
@@ -558,7 +558,7 @@ h1 em{font-style:normal;color:var(--g)}
 <script>
 let serviceCategories=[];
 const $ = id => document.getElementById(id);
-/* Nattukaar language switch: persistent English / Malayalam */
+/* Nattukaar language switch: English, Malayalam and Hindi */
 (function(){
  const translations = {
   "Kerala’s local services marketplace":"കേരളത്തിന്റെ പ്രാദേശിക സേവന വിപണി",
@@ -697,6 +697,93 @@ const $ = id => document.getElementById(id);
   "Please wait…":"ദയവായി കാത്തിരിക്കുക…",
   "Something went wrong. Please try again.":"എന്തോ പിശക് സംഭവിച്ചു. വീണ്ടും ശ്രമിക്കുക."
  };
+ const hindiTranslations = {
+  "Kerala’s local services marketplace": "केरल का स्थानीय सेवा बाज़ार",
+  "Discover · Compare · Contact": "खोजें · तुलना करें · संपर्क करें",
+  "Search Locally": "स्थानीय रूप से खोजें",
+  "Search services": "सेवाएँ खोजें",
+  "Search services, providers or locations...": "सेवाएँ, सेवा प्रदाता या स्थान खोजें...",
+  "Advanced search": "उन्नत खोज",
+  "Categories": "श्रेणियाँ",
+  "Find providers": "सेवा प्रदाता खोजें",
+  "How it works": "यह कैसे काम करता है",
+  "Customer sign in": "ग्राहक लॉगिन",
+  "LOCAL SERVICES, MADE SIMPLE": "स्थानीय सेवाएँ, अब आसान",
+  "Find trusted services": "विश्वसनीय सेवाएँ खोजें",
+  "near you.": "आपके पास।",
+  "Discover local taxi providers, rentals, skilled workers and service professionals across Kerala.": "पूरे केरल में टैक्सी सेवाएँ, किराये, कुशल कामगार और सेवा पेशेवर खोजें।",
+  "＋ Join as a provider": "＋ सेवा प्रदाता के रूप में जुड़ें",
+  "BROWSE BY CATEGORY": "श्रेणी के अनुसार खोजें",
+  "What can we help you find?": "आप क्या खोजना चाहते हैं?",
+  "Start with a service category, then compare providers.": "सेवा श्रेणी चुनें और सेवा प्रदाताओं की तुलना करें।",
+  "All services": "सभी सेवाएँ",
+  "Explore every category": "सभी श्रेणियाँ देखें",
+  "Providers near you": "आपके पास सेवा प्रदाता",
+  "Allow location to sort providers by distance, or search by district.": "दूरी के अनुसार प्रदाताओं को क्रमबद्ध करने के लिए लोकेशन की अनुमति दें या ज़िला खोजें।",
+  "Use my current location": "मेरी वर्तमान लोकेशन इस्तेमाल करें",
+  "Clear location": "लोकेशन हटाएँ",
+  "Providers on the map": "मैप पर सेवा प्रदाता",
+  "Loading": "लोड हो रहा है",
+  "Loading local providers…": "स्थानीय सेवा प्रदाता लोड हो रहे हैं…",
+  "DISCOVER LOCAL PROVIDERS": "स्थानीय सेवा प्रदाता खोजें",
+  "Providers to explore": "देखने के लिए सेवा प्रदाता",
+  "Active providers registered on Nattukaar.": "नट्टुकार पर पंजीकृत सक्रिय सेवा प्रदाता।",
+  "Clear filters ↺": "फ़िल्टर हटाएँ ↺",
+  "SIMPLE BY DESIGN": "सरल अनुभव",
+  "How Nattukaar works": "नट्टुकार कैसे काम करता है",
+  "A browse-first approach that puts the choice in your hands.": "पहले खोजें, फिर अपनी पसंद का विकल्प चुनें।",
+  "Choose a provider": "सेवा प्रदाता चुनें",
+  "Send a booking request": "बुकिंग अनुरोध भेजें",
+  "Confirm directly": "सीधे पुष्टि करें",
+  "Offer a service in your area?": "क्या आप अपने क्षेत्र में सेवा देते हैं?",
+  "Build your profile so local customers can discover what you do.": "अपनी प्रोफ़ाइल बनाएँ ताकि स्थानीय ग्राहक आपकी सेवाएँ खोज सकें।",
+  "Register as a provider →": "सेवा प्रदाता के रूप में पंजीकरण करें →",
+  "Request a booking": "बुकिंग का अनुरोध करें",
+  "Share a few details to get started.": "शुरू करने के लिए कुछ विवरण साझा करें।",
+  "Cancel": "रद्द करें",
+  "Submit booking request": "बुकिंग अनुरोध जमा करें",
+  "PROVIDER PROFILE": "सेवा प्रदाता प्रोफ़ाइल",
+  "Close profile": "प्रोफ़ाइल बंद करें",
+  "Sign in": "साइन इन करें",
+  "Use your email and password.": "अपना ईमेल और पासवर्ड इस्तेमाल करें।",
+  "Create account": "खाता बनाएँ",
+  "My bookings": "मेरी बुकिंग",
+  "Sign out": "साइन आउट करें",
+  "Service": "सेवा",
+  "Town / locality": "शहर / इलाका",
+  "Search a town, locality or district": "शहर, इलाका या ज़िला खोजें",
+  "What are you looking for?": "आप क्या खोज रहे हैं?",
+  "Start typing a service...": "सेवा का नाम लिखना शुरू करें...",
+  "Search": "खोजें",
+  "AI-powered discovery": "AI आधारित खोज",
+  "Find services across Kerala": "पूरे केरल में सेवाएँ खोजें",
+  "View profile": "प्रोफ़ाइल देखें",
+  "Show on map": "मैप पर दिखाएँ",
+  "No bookings yet.": "अभी कोई बुकिंग नहीं है।",
+  "Provider dashboard": "सेवा प्रदाता डैशबोर्ड",
+  "Email": "ईमेल",
+  "Password": "पासवर्ड",
+  "Full name": "पूरा नाम",
+  "Phone": "फ़ोन",
+  "Submit": "जमा करें",
+  "Close": "बंद करें",
+  "Back": "वापस",
+  "Next": "आगे",
+  "Date": "तारीख",
+  "Time": "समय",
+  "Location": "स्थान",
+  "Town": "शहर",
+  "District": "ज़िला",
+  "Description": "विवरण",
+  "Name": "नाम",
+  "Mobile number": "मोबाइल नंबर",
+  "Email address": "ईमेल पता",
+  "All categories": "सभी श्रेणियाँ",
+  "Booking request": "बुकिंग अनुरोध",
+  "Booking details": "बुकिंग विवरण",
+  "Please wait…": "कृपया प्रतीक्षा करें…",
+  "Something went wrong. Please try again.": "कुछ गलत हुआ। कृपया फिर से कोशिश करें।"
+};
  const attrMap = {
   "Search services, providers or locations...":"സേവനങ്ങൾ, സേവനദാതാക്കൾ അല്ലെങ്കിൽ സ്ഥലങ്ങൾ തിരയുക...",
   "Search services, providers or locations":"സേവനങ്ങൾ, സേവനദാതാക്കൾ അല്ലെങ്കിൽ സ്ഥലങ്ങൾ തിരയുക",
@@ -704,66 +791,62 @@ const $ = id => document.getElementById(id);
   "Start typing a service...":"ഒരു സേവനത്തിന്റെ പേര് ടൈപ്പ് ചെയ്യുക..."
  };
  let currentLanguage="en";
- const reverseTranslations=Object.fromEntries(Object.entries(translations).map(([en,ml])=>[ml,en]));
- function replaceText(node,toMalayalam){
+ const allReverseTranslations=Object.fromEntries([...Object.entries(translations),...Object.entries(hindiTranslations),...Object.entries(attrMap)].map(([en,value])=>[value,en]));
+ const dictionaries={en:{},ml:translations,hi:hindiTranslations};
+ function dictionary(){return dictionaries[currentLanguage]||{};}
+ function replaceText(node,localized){
   if(!node||node.nodeType!==Node.TEXT_NODE)return;
-  const value=node.nodeValue, trimmed=value.trim();
-  if(!trimmed)return;
-  const leading=value.match(/^\s*/)?.[0]||"", trailing=value.match(/\s*$/)?.[0]||"";
-  const translated=toMalayalam?translations[trimmed]:reverseTranslations[trimmed];
-  if(translated&&translated!==trimmed)node.nodeValue=leading+translated+trailing;
+  const value=node.nodeValue,trimmed=value.trim();if(!trimmed)return;
+  const leading=value.match(/^\\s*/)?.[0]||"",trailing=value.match(/\\s*$/)?.[0]||"";
+  const base=allReverseTranslations[trimmed]||trimmed;
+  const translated=localized?(dictionary()[base]||base):base;
+  if(translated!==trimmed)node.nodeValue=leading+translated+trailing;
  }
- function translateAttributes(root,toMalayalam){
+ function translateAttributes(root,localized){
   if(!root||root.nodeType!==Node.ELEMENT_NODE)return;
-  const elements=[root,...root.querySelectorAll("input,textarea,button,[aria-label],[title]")];
+  const elements=[root,...root.querySelectorAll("input,textarea,button,select,[aria-label],[title]")];
   elements.forEach(el=>["placeholder","aria-label","title"].forEach(name=>{
    if(!el.hasAttribute(name))return;
-   const value=el.getAttribute(name);
-   const translated=toMalayalam?(attrMap[value]||translations[value]):(reverseTranslations[value]||reverseTranslations[attrMap[value]]);
-   if(translated&&translated!==value)el.setAttribute(name,translated);
+   const value=el.getAttribute(name),base=allReverseTranslations[value]||value;
+   const translated=localized?(dictionary()[base]||base):base;
+   if(translated!==value)el.setAttribute(name,translated);
   }));
  }
- function translateTree(root,toMalayalam){
+ function translateTree(root,localized){
   if(!root)return;
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-  let node;while((node=walker.nextNode()))replaceText(node,toMalayalam);
-  if(root.nodeType===Node.ELEMENT_NODE)translateAttributes(root,toMalayalam);
-  root.querySelectorAll?.("input,textarea,button,[aria-label],[title]").forEach(el=>translateAttributes(el,toMalayalam));
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;
+  while((node=walker.nextNode()))replaceText(node,localized);
+  if(root.nodeType===Node.ELEMENT_NODE)translateAttributes(root,localized);
  }
  function renderCategoryLanguage(){
  if(!Array.isArray(serviceCategories)||!serviceCategories.length)return;
- const ml=currentLanguage==="ml",filter=$('catFilter'),cards=$('categoryCards');
+ const ml=currentLanguage!=="en",hi=currentLanguage==="hi",filter=$('catFilter'),cards=$('categoryCards');
+ const name=c=>ml?(c.name_ml||c.name):hi?(c.name_hi||c.name):c.name;
+ const all=ml?"എല്ലാ സേവനങ്ങളും":hi?"सभी सेवाएँ":"All services";
+ const more=ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":hi?"सभी श्रेणियाँ देखें":"Explore every category";
  if(filter){
   const selected=filter.value||"all";filter.innerHTML="";
-  const allOption=document.createElement("option");allOption.value="all";allOption.textContent=ml?"എല്ലാ സേവനങ്ങളും":"All services";filter.appendChild(allOption);
-  serviceCategories.forEach(c=>{const option=document.createElement("option");option.value=c.name;option.textContent=ml?(c.name_ml||c.name):c.name;filter.appendChild(option);});
+  const option=document.createElement("option");option.value="all";option.textContent=all;filter.appendChild(option);
+  serviceCategories.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=name(c);filter.appendChild(o);});
   filter.value=selected;
  }
  if(cards){
   cards.innerHTML="";
-  serviceCategories.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat=c.name;const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=ml?(c.name_ml||c.name):c.name;const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":(c.description||"Explore local providers");b.append(icon,title,desc);cards.appendChild(b);});
-  const all=document.createElement("button");all.type="button";all.className="category";all.dataset.cat="all";all.innerHTML='<span class="cat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><strong>'+(ml?"എല്ലാ സേവനങ്ങളും":"All services")+'</strong><small>'+(ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":"Explore every category")+'</small>';cards.appendChild(all);
+  serviceCategories.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat=c.name;const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=name(c);const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");b.append(icon,title,desc);cards.appendChild(b);});
+  const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat="all";b.innerHTML='<strong>'+all+'</strong><small>'+more+'</small>';cards.appendChild(b);
  }
 }
 function setLanguage(lang){
-  currentLanguage=lang==="ml"?"ml":"en";
-  document.documentElement.lang=currentLanguage;
-  document.documentElement.setAttribute("data-language",currentLanguage);
-  translateTree(document.body,currentLanguage==="ml");
-  renderCategoryLanguage();
-  const button=document.getElementById("languageToggle");
-  if(button){
-   button.textContent=currentLanguage==="ml"?"English":"മലയാളം";
-   button.setAttribute("aria-label",currentLanguage==="ml"?"Switch to English":"മലയാളത്തിലേക്ക് മാറുക");
-   button.setAttribute("title",currentLanguage==="ml"?"Switch to English":"മലയാളത്തിലേക്ക് മാറുക");
-  }
-  try{localStorage.setItem("nattukaar-language",currentLanguage);}catch(e){}
- }
+ currentLanguage=["en","ml","hi"].includes(lang)?lang:"en";
+ document.documentElement.lang=currentLanguage;
+ document.documentElement.setAttribute("data-language",currentLanguage);
+ translateTree(document.body,currentLanguage!=="en");
+ renderCategoryLanguage();
+ const selector=document.getElementById("languageToggle");if(selector)selector.value=currentLanguage;
+ try{localStorage.setItem("nattukaar-language",currentLanguage);}catch(e){}
+}
  window.nattukaarSetLanguage=setLanguage;
- document.addEventListener("click",event=>{
-  const button=event.target.closest("#languageToggle");
-  if(button){event.preventDefault();setLanguage(currentLanguage==="ml"?"en":"ml");}
- },true);
+ document.addEventListener("change",event=>{if(event.target&&event.target.matches("#languageToggle"))setLanguage(event.target.value);});
  const observer=new MutationObserver(records=>records.forEach(record=>{
   if(record.type==="characterData"){replaceText(record.target,currentLanguage==="ml");return;}
   record.addedNodes.forEach(node=>{
@@ -773,7 +856,7 @@ function setLanguage(lang){
  }));
  observer.observe(document.body,{childList:true,subtree:true,characterData:true});
  let savedLanguage="en";
- try{savedLanguage=localStorage.getItem("nattukaar-language")==="ml"?"ml":"en";}catch(e){}
+ try{const saved=localStorage.getItem("nattukaar-language");savedLanguage=["en","ml","hi"].includes(saved)?saved:"en";}catch(e){}
  setLanguage(savedLanguage);
 })();</script>
 
