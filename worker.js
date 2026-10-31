@@ -357,6 +357,16 @@ export default {
       const canManageRoles = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_roles"));
       const canManageStaff = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_staff"));
       const canReviewProviders = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("review_providers"));
+      const canViewBookings = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("view_bookings"));
+      if (path === "/api/admin/bookings" && request.method === "GET") {
+        if(!canViewBookings)return respond({error:"You do not have permission to view booking reports."},403);
+        const result=await env.DB.prepare("SELECT b.id,b.provider_id,b.customer_account_id,b.customer_name,b.customer_phone,b.customer_email,b.service_date,b.service_location,b.details,b.status,b.created_at,b.provider_quote,b.provider_quote_note,b.customer_counter_offer,b.customer_counter_note,p.business_name,p.contact_name AS provider_contact,p.phone AS provider_phone,p.email AS provider_email,p.town AS provider_town,p.district AS provider_district,c.name AS category_name,a.display_name AS account_name FROM booking_requests b LEFT JOIN providers p ON p.id=b.provider_id LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN user_accounts a ON a.id=b.customer_account_id ORDER BY b.created_at DESC LIMIT 1000").all();
+        const bookings=result.results||[];
+        const today=new Date().toISOString().slice(0,10);
+        const stats={total:bookings.length,pending:0,accepted:0,completed:0,rejected:0,today:0};
+        for(const b of bookings){const status=String(b.status||"pending").toLowerCase();if(Object.prototype.hasOwnProperty.call(stats,status))stats[status]++;if(String(b.created_at||"").slice(0,10)===today)stats.today++;}
+        return respond({bookings,stats,limit:1000});
+      }
       if (path === "/api/admin/categories" && request.method === "GET") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const result=await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,active,sort_order FROM categories ORDER BY sort_order,name").all();
