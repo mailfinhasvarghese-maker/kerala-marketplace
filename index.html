@@ -820,7 +820,7 @@ const $ = id => document.getElementById(id);
  }
  function renderCategoryLanguage(){
  if(!Array.isArray(serviceCategories)||!serviceCategories.length)return;
- const ml=currentLanguage!=="en",hi=currentLanguage==="hi",filter=$('catFilter'),cards=$('categoryCards');
+ const ml=currentLanguage==="ml",hi=currentLanguage==="hi",filter=$('catFilter'),cards=$('categoryCards');
  const name=c=>ml?(c.name_ml||c.name):hi?(c.name_hi||c.name):c.name;
  const all=ml?"എല്ലാ സേവനങ്ങളും":hi?"सभी सेवाएँ":"All services";
  const more=ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":hi?"सभी श्रेणियाँ देखें":"Explore every category";
