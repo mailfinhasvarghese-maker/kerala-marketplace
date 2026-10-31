@@ -556,6 +556,7 @@ h1 em{font-style:normal;color:var(--g)}
 
 <script>
 let serviceCategories=[];
+const $ = id => document.getElementById(id);
 /* Nattukaar language switch: persistent English / Malayalam */
 (function(){
  const translations = {
@@ -777,7 +778,6 @@ function setLanguage(lang){
 
 <script>
 const data = [];
-const $ = id => document.getElementById(id);
 let customerLocation=null, providerMap=null, providerMarkers=null, mapReady=false, localSearchActive=false;
 const LOCAL_SEARCH_RADIUS_KM=5;
 function categoryIconSvg(category){
