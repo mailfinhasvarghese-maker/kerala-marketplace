@@ -389,39 +389,59 @@ h1 em{font-style:normal;color:var(--g)}
 }
 
 
-/* Mobile header: keep the brand first and show a plain Search Locally link beneath it. */
+/* Mobile header: brand on the left, local search and language on the right. */
 @media (max-width: 640px) {
   .nav-inner {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 5px;
-    padding: 12px 0 10px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 64px;
+    padding: 9px 0;
   }
   .nav-inner > .brand {
     order: 1;
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    gap: 7px;
+    font-size: 16px;
+    letter-spacing: -.4px;
   }
-  .nav-inner > .links {
-    display: none !important;
+  .nav-inner > .brand .mark {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-radius: 10px;
+    font-size: 19px;
+  }
+  .nav-inner > .brand small {
+    font-size: 7px;
+    letter-spacing: 1px;
   }
   .nav-inner > #searchLocallyBtn {
     order: 2;
     display: inline-flex;
-    align-self: flex-start;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     width: auto;
+    min-width: 0;
     min-height: 0;
     height: auto;
     margin: 0;
-    padding: 2px 0;
+    padding: 5px 0;
     border: 0 !important;
     border-radius: 0;
     background: transparent !important;
     box-shadow: none !important;
     color: var(--g);
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
+    white-space: nowrap;
   }
   .nav-inner > #searchLocallyBtn:hover,
   .nav-inner > #searchLocallyBtn:focus {
@@ -431,13 +451,30 @@ h1 em{font-style:normal;color:var(--g)}
     background: transparent !important;
   }
   .nav-inner > #searchLocallyBtn svg {
-    width: 17px;
-    height: 17px;
+    width: 16px;
+    height: 16px;
+  }
+  .nav-inner > #languageToggle {
+    order: 3;
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 68px;
+    height: 34px;
+    margin: 0;
+    padding: 5px 7px;
+    font-size: 11px;
   }
   .nav-inner > .header-search-wrap,
-  .nav-inner > #languageToggle {
+  .nav-inner > .links {
     display: none !important;
   }
+}
+@media (max-width: 360px) {
+  .nav-inner > .brand { font-size: 14px; gap: 5px; }
+  .nav-inner > .brand .mark { width: 30px; height: 30px; flex-basis: 30px; }
+  .nav-inner > #searchLocallyBtn { font-size: 10px; gap: 2px; }
+  .nav-inner > #languageToggle { min-width: 62px; padding-inline: 5px; }
 }
 
 </style>
