@@ -894,6 +894,7 @@ const $ = id => document.getElementById(id);
   const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat="all";b.innerHTML='<strong>'+all+'</strong><small>'+more+'</small>';cards.appendChild(b);
  }
 }
+window.nattukaarRenderCategoryLanguage=renderCategoryLanguage;
 function setLanguage(lang){
  currentLanguage=["en","ml","hi"].includes(lang)?lang:"en";
  document.documentElement.lang=currentLanguage;
@@ -936,7 +937,7 @@ async function loadCategories(){
     const result=await response.json();
     if(!response.ok)throw new Error(result.error||'Could not load categories');
     serviceCategories=Array.isArray(result.categories)?result.categories:[];
-    renderCategoryLanguage();
+    window.nattukaarRenderCategoryLanguage();
   }catch(error){console.error('Category loading failed:',error);}
 }
 function distanceKm(a,b){const rad=x=>x*Math.PI/180;const dLat=rad(b.lat-a.lat),dLon=rad(b.lng-a.lng);const q=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 6371*2*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
