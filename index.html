@@ -1687,7 +1687,12 @@ $('requestForm').addEventListener('submit', async e => {
 $('year').textContent = new Date().getFullYear();
 refreshAccount();
 initProviderMap();
-loadCategories().then(loadProviders);
+loadCategories().then(async()=>{
+  // Re-render category controls after the async category and provider data have settled.
+  renderCategoryLanguage();
+  await loadProviders();
+  requestAnimationFrame(()=>renderCategoryLanguage());
+});
 </script>
 </body>
 </html>
