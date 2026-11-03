@@ -376,6 +376,18 @@ h1 em{font-style:normal;color:var(--g)}
 
 .location-greeting{margin-top:7px;font-size:15px;font-weight:700;color:var(--g);line-height:1.45}.location-greeting[hidden]{display:none!important}.location-greeting .greeting-place{color:var(--ink)}
  
+
+/* Fixed mobile bottom navigation */
+.mobile-bottom-nav{display:none}
+@media(max-width:640px){
+ body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+ .mobile-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:18;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:7px 8px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line);box-shadow:0 -5px 22px rgba(41,35,51,.09)}
+ .mobile-bottom-nav button{appearance:none;border:0;background:transparent;color:var(--muted);min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;cursor:pointer;border-radius:12px}
+ .mobile-bottom-nav button svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+ .mobile-bottom-nav button:active,.mobile-bottom-nav button:focus-visible{background:var(--mint);color:var(--g);outline:none}
+ .mobile-bottom-nav button.active{color:var(--g)}
+}
+
 </style>
 </head>
 
@@ -552,6 +564,14 @@ h1 em{font-style:normal;color:var(--g)}
   </article>
 </div>
 <div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
+
+<nav class="mobile-bottom-nav" aria-label="Main mobile navigation">
+ <button type="button" data-mobile-nav="home" class="active" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+ <button type="button" data-mobile-nav="categories" aria-label="Categories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Categories</span></button>
+ <button type="button" data-mobile-nav="account" aria-label="Account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Account</span></button>
+ <button type="button" data-mobile-nav="orders" aria-label="Orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-3-6 3z"/><path d="M9 8h6M9 12h6"/></svg><span>Orders</span></button>
+</nav>
+
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1683,6 +1703,22 @@ $('requestForm').addEventListener('submit', async e => {
       ? 'Submit provider interest'
       : 'Submit booking request';
   }
+});
+
+
+document.querySelectorAll('[data-mobile-nav]').forEach(function(button){
+ button.addEventListener('click',async function(){
+  const action=button.dataset.mobileNav;
+  document.querySelectorAll('[data-mobile-nav]').forEach(x=>x.classList.toggle('active',x===button));
+  if(action==='home'){window.scrollTo({top:0,behavior:'smooth'});return;}
+  if(action==='categories'){document.querySelector('#categories')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(action==='account'){if(currentAccount)await openAccount();else openAuth('login');return;}
+  if(action==='orders'){
+   if(!authToken){openAuth('login');toast('Sign in to view your orders.');return;}
+   await openAccount();
+   if(currentAccount&&currentAccount.role==='customer')$('accountTitle').textContent='My orders';
+  }
+ });
 });
 
 $('year').textContent = new Date().getFullYear();
