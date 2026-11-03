@@ -1690,9 +1690,9 @@ refreshAccount();
 initProviderMap();
 loadCategories().then(async()=>{
   // Re-render category controls after the async category and provider data have settled.
-  renderCategoryLanguage();
+  window.nattukaarRenderCategoryLanguage();
   await loadProviders();
-  requestAnimationFrame(()=>renderCategoryLanguage());
+  requestAnimationFrame(()=>window.nattukaarRenderCategoryLanguage());
 });
 </script>
 </body>
