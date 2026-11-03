@@ -388,6 +388,58 @@ h1 em{font-style:normal;color:var(--g)}
  .mobile-bottom-nav button.active{color:var(--g)}
 }
 
+
+/* Mobile header: keep the brand first and show a plain Search Locally link beneath it. */
+@media (max-width: 640px) {
+  .nav-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    padding: 12px 0 10px;
+  }
+  .nav-inner > .brand {
+    order: 1;
+    width: 100%;
+  }
+  .nav-inner > .links {
+    display: none !important;
+  }
+  .nav-inner > #searchLocallyBtn {
+    order: 2;
+    display: inline-flex;
+    align-self: flex-start;
+    width: auto;
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    padding: 2px 0;
+    border: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--g);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .nav-inner > #searchLocallyBtn:hover,
+  .nav-inner > #searchLocallyBtn:focus {
+    border: 0 !important;
+    outline: none;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .nav-inner > #searchLocallyBtn svg {
+    width: 17px;
+    height: 17px;
+  }
+  .nav-inner > .header-search-wrap,
+  .nav-inner > #languageToggle {
+    display: none !important;
+  }
+}
+
 </style>
 </head>
 
