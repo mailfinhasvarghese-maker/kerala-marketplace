@@ -21,6 +21,10 @@ async function derivePassword(password, salt) {
   return tokenText(new Uint8Array(bits));
 }
 async function ensureSchema(db) {
+  await db.prepare("CREATE TABLE IF NOT EXISTS service_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_account_id INTEGER NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT NOT NULL, category_id INTEGER, service_location TEXT NOT NULL, service_date TEXT, details TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', selected_provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(customer_account_id) REFERENCES user_accounts(id))").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS service_request_recipients (id INTEGER PRIMARY KEY AUTOINCREMENT, request_id INTEGER NOT NULL, provider_id INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', quote REAL, quote_note TEXT, response_at TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(request_id,provider_id), FOREIGN KEY(request_id) REFERENCES service_requests(id), FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_service_requests_customer ON service_requests(customer_account_id,created_at)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_service_recipients_provider ON service_request_recipients(provider_id,status)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS provider_images (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, object_key TEXT NOT NULL UNIQUE, content_type TEXT NOT NULL DEFAULT 'image/jpeg', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
@@ -796,6 +800,64 @@ export default {
           "WHERE provider_id = ? AND status = 'published' ORDER BY created_at DESC LIMIT 50"
         ).bind(providerId).all();
         return respond({ reviews: result.results || [] });
+      }
+
+      // Instant Service Request: one customer request can be sent to multiple matching providers.
+      if (path === "/api/service-requests" && request.method === "POST") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="customer") return respond({error:"Please sign in with a customer account."},401);
+        const body=await request.json();
+        const category=String(body.category||"").trim().slice(0,100);
+        const location=String(body.service_location||"").trim().slice(0,300);        
+        const locationKey=location.split(",")[0].trim();
+        const details=String(body.details||"").trim().slice(0,2000);
+        const phone=String(body.customer_phone||"").trim().slice(0,60);
+        const date=String(body.service_date||"").trim().slice(0,40);
+        if(!category||!location||!details||!phone) return respond({error:"Choose a service, enter the location, describe the job and provide a contact number."},400);
+        const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
+        if(!cat) return respond({error:"Choose a valid active service category."},400);
+        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,"%"+locationKey+"%","%"+locationKey+"%","%"+locationKey+"%").all();
+        if(!providers.results?.length) return respond({error:"No active providers were found for this service in that area. Try a nearby town or district."},404);
+        const result=await env.DB.prepare("INSERT INTO service_requests (customer_account_id,customer_name,customer_phone,category_id,service_location,service_date,details) VALUES (?,?,?,?,?,?,?)").bind(account.id,account.display_name,phone,cat.id,location,date||null,details).run();
+        const requestId=result.meta.last_row_id;
+        const inserts=providers.results.map(p=>env.DB.prepare("INSERT INTO service_request_recipients (request_id,provider_id) VALUES (?,?)").bind(requestId,p.id));
+        await env.DB.batch(inserts);
+        return respond({ok:true,request_id:requestId,providers_notified:providers.results.length,status:"open",message:"Your request has been sent to "+providers.results.length+" matching provider(s)."},201);
+      }
+      if (path === "/api/customer/service-requests" && request.method === "GET") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.status,r.created_at,c.name AS category_name,x.provider_id,p.business_name,x.status AS provider_status,x.quote,x.quote_note,x.response_at,CASE WHEN r.selected_provider_id=x.provider_id THEN 1 ELSE 0 END AS selected FROM service_requests r JOIN categories c ON c.id=r.category_id JOIN service_request_recipients x ON x.request_id=r.id JOIN providers p ON p.id=x.provider_id WHERE r.customer_account_id=? ORDER BY r.created_at DESC,x.created_at ASC LIMIT 300").bind(account.id).all();
+        const grouped=new Map();
+        for(const row of rows.results||[]){if(!grouped.has(row.id)){const {provider_id,business_name,provider_status,quote,quote_note,response_at,selected,...request}=row;grouped.set(row.id,{...request,providers:[]});}grouped.get(row.id).providers.push({provider_id:row.provider_id,business_name:row.business_name,status:row.provider_status,quote:row.quote,quote_note:row.quote_note,response_at:row.response_at,selected:!!row.selected});}
+        return respond({requests:[...grouped.values()]});
+      }
+      if (path === "/api/provider/service-requests" && request.method === "GET") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.created_at,c.name AS category_name,x.status,x.quote,x.quote_note,x.response_at FROM service_request_recipients x JOIN service_requests r ON r.id=x.request_id JOIN categories c ON c.id=r.category_id WHERE x.provider_id=? ORDER BY r.created_at DESC LIMIT 200").bind(account.provider_id).all();
+        return respond({requests:rows.results||[]});
+      }
+      if (path === "/api/provider/service-request-response" && request.method === "POST") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const body=await request.json(), id=Number.parseInt(body.request_id,10), status=String(body.status||"").toLowerCase(), quote=body.quote===""||body.quote==null?null:Number(body.quote), note=String(body.note||"").trim().slice(0,1000);
+        if(!Number.isInteger(id)||id<1||!["interested","declined"].includes(status)||(quote!==null&&(!Number.isFinite(quote)||quote<0||quote>100000000))) return respond({error:"Provide a valid request response and optional quote."},400);
+        const row=await env.DB.prepare("SELECT x.id FROM service_request_recipients x JOIN service_requests r ON r.id=x.request_id WHERE x.request_id=? AND x.provider_id=? AND r.status='open'").bind(id,account.provider_id).first();
+        if(!row) return respond({error:"Open service request not found for this provider."},404);
+        await env.DB.prepare("UPDATE service_request_recipients SET status=?,quote=?,quote_note=?,response_at=CURRENT_TIMESTAMP WHERE id=?").bind(status,quote,note||null,row.id).run();
+        return respond({ok:true,message:"Your response has been sent to the customer."});
+      }
+      if (path === "/api/customer/service-request-select" && request.method === "POST") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        const body=await request.json(), id=Number.parseInt(body.request_id,10), providerId=Number.parseInt(body.provider_id,10);
+        if(!Number.isInteger(id)||id<1||!Number.isInteger(providerId)||providerId<1) return respond({error:"Choose a valid provider response."},400);
+        const chosen=await env.DB.prepare("SELECT id FROM service_request_recipients WHERE request_id=? AND provider_id=? AND status='interested'").bind(id,providerId).first();
+        if(!chosen) return respond({error:"This provider has not submitted an offer."},404);
+        const updated=await env.DB.prepare("UPDATE service_requests SET selected_provider_id=?,status='matched',updated_at=CURRENT_TIMESTAMP WHERE id=? AND customer_account_id=? AND status='open'").bind(providerId,id,account.id).run();
+        if(!updated.meta?.changes) return respond({error:"This request is no longer open."},409);
+        return respond({ok:true,message:"Provider selected. You can now contact them to confirm the job."});
       }
 
       if (path === "/api/booking-requests" && request.method === "POST") {
