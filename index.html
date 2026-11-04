@@ -1373,8 +1373,8 @@ async function openAccount(){
   try{
     const path=currentAccount.role==='provider'?'/api/provider/bookings':'/api/customer/bookings';
     const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev'+path,{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load bookings.');
-    const bookings=d.bookings||[];if(!bookings.length){$('accountContent').innerHTML='<p>No bookings yet.</p>';return;}
-    $('accountContent').innerHTML=bookings.map(function(b){
+    const bookings=d.bookings||[];
+    $('accountContent').innerHTML=bookings.length?bookings.map(function(b){
       let html='<article style="border:1px solid var(--line);border-radius:14px;padding:15px;margin:12px 0;background:#fff"><strong>'+(currentAccount.role==='provider'?'Booking #'+esc(b.id):esc(b.business_name||('Booking #'+b.id)))+'</strong><p style="font-size:12px;line-height:1.8">Status: <b>'+esc(b.status)+'</b><br>Booking #'+esc(b.id)+' · '+esc(b.service_date||'Date not set')+'<br>Location: '+esc(b.service_location||'Not provided')+'<br>Details: '+esc(b.details||'No extra details')+'</p>';
       if(currentAccount.role==='provider'){
         html+='<div style="background:#faf7fd;padding:12px;border-radius:10px;margin:10px 0"><b>Customer: '+esc(b.customer_name||'Customer')+'</b><p style="font-size:12px;margin:6px 0">Phone: '+esc(b.customer_phone||'Not provided')+'<br>Email: '+esc(b.customer_email||'Not provided')+'</p><div style="display:flex;gap:7px;flex-wrap:wrap">';
@@ -1394,7 +1394,17 @@ async function openAccount(){
         else if(b.status==='completed'&&b.has_review)html+='<p>Review already submitted.</p>';
       }
       return html+'</article>';
-    }).join('');
+    }).join(''):'<p>No direct bookings yet.</p>';
+    if(currentAccount.role==='customer'){
+      const sr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/customer/service-requests',{headers:authHeaders()});
+      const sd=await sr.json();if(!sr.ok)throw Error(sd.error||'Could not load service requests.');
+      const requests=sd.requests||[];
+      let section='<section style="margin-top:18px"><h3>Instant service requests</h3>';
+      if(!requests.length)section+='<p>No instant requests yet.</p>';
+      section+=requests.map(r=>'<article style="border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0;background:#fff"><strong>'+esc(r.category_name)+' · Request #'+r.id+'</strong><p style="font-size:12px;line-height:1.8">Status: <b>'+esc(r.status)+'</b><br>Location: '+esc(r.service_location)+'<br>Preferred date: '+esc(r.service_date||'Flexible')+'<br>'+esc(r.details)+'</p><div>'+r.providers.map(p=>'<div style="border-top:1px solid var(--line);padding:10px 0"><b>'+esc(p.business_name)+'</b> · '+esc(p.status)+(p.quote!==null?' · Quote: '+Number(p.quote).toLocaleString():'')+(p.quote_note?'<p>'+esc(p.quote_note)+'</p>':'')+(p.status==='interested'&&!p.selected&&r.status==='open'?'<button class="btn primary" data-select-request="'+r.id+'" data-select-provider="'+p.provider_id+'">Choose this provider</button>':'')+(p.selected?'<p><b>Selected provider</b></p>':'')+'</div>').join('')+'</div></article>').join('');
+      $('accountContent').insertAdjacentHTML('beforeend',section+'</section>');
+      $('accountContent').querySelectorAll('[data-select-request]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/customer/service-request-select',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({request_id:Number(btn.dataset.selectRequest),provider_id:Number(btn.dataset.selectProvider)})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast(dd.message||'Provider selected.');openAccount();}catch(err){toast(err.message);btn.disabled=false;}}));
+    }
     $('accountContent').querySelectorAll('form[data-quote]').forEach(function(form){form.addEventListener('submit',async function(e){e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider/booking-quote',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(form.dataset.quote),quote:Number(form.elements.quote.value),note:form.elements.note.value.trim()})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Payment offer sent to customer.');openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
     $('accountContent').querySelectorAll('form[data-counter]').forEach(function(form){form.addEventListener('submit',async function(e){e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/customer/booking-counter-offer',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(form.dataset.counter),offer:Number(form.elements.offer.value),note:form.elements.note.value.trim()})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Counter-offer sent to provider.');openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
     $('accountContent').querySelectorAll('[data-status]').forEach(function(btn){btn.addEventListener('click',async function(){btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider/booking-status',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(btn.dataset.id),status:btn.dataset.status})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Booking updated: '+dd.status);openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
