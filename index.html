@@ -998,7 +998,7 @@ const $ = id => document.getElementById(id);
  }
  if(cards){
   cards.innerHTML="";
-  mainCategories.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat=c.name;const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=name(c);const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");b.append(icon,title,desc);cards.appendChild(b);});
+  mainCategories.forEach(c=>{const wrap=document.createElement("div");wrap.className="category";wrap.style.cursor="default";const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=name(c);const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");wrap.append(icon,title,desc);const children=serviceCategories.filter(x=>Number(x.parent_id)===Number(c.id));if(children.length){const list=document.createElement("div");list.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px";children.forEach(child=>{const chip=document.createElement("button");chip.type="button";chip.className="btn outline";chip.style.cssText="font-size:11px;padding:5px 8px";chip.textContent=name(child);chip.addEventListener("click",()=>{filter.value=c.name;$("keyword").value=name(child);render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});});list.appendChild(chip);});wrap.appendChild(list);}wrap.addEventListener("click",e=>{if(e.target===wrap||e.target===icon||e.target===title||e.target===desc){filter.value=c.name;$("keyword").value="";render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});}});cards.appendChild(wrap);});
   const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat="all";b.innerHTML='<strong>'+all+'</strong><small>'+more+'</small>';cards.appendChild(b);
  }
 }
@@ -1461,7 +1461,8 @@ function openModal(type, p = null) {
 
   const fields = type === 'instant'
     ? [
-        ['Service category', 'service', 'select', ''],
+        ['Main service category', 'service', 'select', ''],
+        ['Service subcategory', 'subcategory', 'select', ''],
         ['Your mobile number', 'phone', 'tel', 'Your contact number'],
         ['Town / area', 'location', 'text', 'Choose your service location'],
         ['Preferred date', 'date', 'date', ''],
@@ -1532,9 +1533,9 @@ function openModal(type, p = null) {
 
     return html + '</div>';
   }).join('');
-  if(type==='provider'){
+  if(type==='provider'||type==='instant'){
     const main=$('f_service'),sub=$('f_subcategory');
-    const populate=()=>{const parent=serviceCategories.find(c=>!c.parent_id&&c.slug===main.value);const children=parent?serviceCategories.filter(c=>Number(c.parent_id)===Number(parent.id)):[];sub.innerHTML='<option value="">Choose subcategory</option>'+children.map(c=>'<option value="'+esc(c.slug)+'">'+esc(c.name)+'</option>').join('');sub.disabled=!children.length;sub.required=children.length>0;if(!children.length)sub.innerHTML='<option value="">No subcategories available</option>';};
+    const populate=()=>{const parent=serviceCategories.find(c=>!c.parent_id&&c.slug===main.value);const children=parent?serviceCategories.filter(c=>Number(c.parent_id)===Number(parent.id)):[];sub.innerHTML='<option value="">'+(children.length?'Choose subcategory':'No subcategories available')+'</option>'+children.map(c=>'<option value="'+esc(c.slug)+'">'+esc(c.name)+'</option>').join('');sub.disabled=!children.length;sub.required=children.length>0;};
     main.addEventListener('change',populate);populate();
   }
   if (type === 'provider' && authToken && currentAccount) {
@@ -1859,6 +1860,7 @@ $('requestForm').addEventListener('submit', async e => {
       }
     : isInstant ? {
         category: $('f_service').value.trim(),
+        subcategory: $('f_subcategory').value.trim(),
         customer_phone: $('f_phone').value.trim(),
         service_date: $('f_date').value.trim(),
         service_location: $('f_location').value.trim(),
