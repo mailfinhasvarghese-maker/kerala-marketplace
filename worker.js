@@ -564,7 +564,7 @@ export default {
         const accountEmail = String(body.email || "").trim().toLowerCase();
         const accountPassword = String(body.password || "");
         const signedInAccount = await getAccount(request, env.DB);
-        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail)) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
           return respond({error:"Enter a valid account email address."},400);
         }
         if (signedInAccount) {
