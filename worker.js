@@ -41,7 +41,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT 'grid', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   const catInfo = await db.prepare("PRAGMA table_info(categories)").all();
   const catCols = new Set((catInfo.results || []).map(x => x.name));
-  for (const [n,t] of [["description","TEXT"],["name_ml","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"],["parent_id","INTEGER"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
+  for (const [n,t] of [["description","TEXT"],["name_ml","TEXT"],["name_hi","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"],["parent_id","INTEGER"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
 }
 async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
@@ -340,7 +340,7 @@ export default {
       }
 
       if (path === "/api/categories" && request.method === "GET") {
-        const result = await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,sort_order,parent_id FROM categories WHERE active=1 ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
+        const result = await env.DB.prepare("SELECT id,name,name_ml,name_hi,slug,description,icon,sort_order,parent_id FROM categories WHERE active=1 ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
         return respond({categories:result.results||[]});
       }
       if (path === "/api/admin/bootstrap" && request.method === "POST") {
@@ -374,18 +374,18 @@ export default {
       }
       if (path === "/api/admin/categories" && request.method === "GET") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
-        const result=await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,active,sort_order,parent_id FROM categories ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
+        const result=await env.DB.prepare("SELECT id,name,name_ml,name_hi,slug,description,icon,active,sort_order,parent_id FROM categories ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
         return respond({categories:result.results||[]});
       }
       if (path === "/api/admin/categories" && request.method === "POST") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const body=await request.json();
-        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), nameMl=String(body.name_ml||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100, parentId=Number.parseInt(body.parent_id,10)||null;
+        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), nameMl=String(body.name_ml||"").trim().slice(0,100), nameHi=String(body.name_hi||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100, parentId=Number.parseInt(body.parent_id,10)||null;
         if(icon!=="grid"&&(!icon.startsWith("data:image/png;base64,")||icon.length>82000||!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(icon)))return respond({error:"Category icon must be a PNG image no larger than 60 KB."},400);
         const slug=String(body.slug||name).trim().toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
         if(!name||!slug)return respond({error:"Category name is required."},400);
         if(parentId){const parent=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE id=?").bind(parentId).first();if(!parent||parent.parent_id||parentId===id)return respond({error:"Choose a valid main category. Subcategories cannot have another parent."},400);if(id>0){const children=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=?").bind(id).first();if(Number(children?.total||0)>0)return respond({error:"Move or remove this category's subcategories before changing its level."},400);}}
-        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,name_ml=?,slug=?,description=?,icon=?,active=?,sort_order=?,parent_id=? WHERE id=?").bind(name,nameMl||null,slug,description,icon,active,sortOrder,parentId,id).run(); else await env.DB.prepare("INSERT INTO categories (name,name_ml,slug,description,icon,active,sort_order,parent_id) VALUES (?,?,?,?,?,?,?,?)").bind(name,nameMl||null,slug,description,icon,active,sortOrder,parentId).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
+        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,name_ml=?,name_hi=?,slug=?,description=?,icon=?,active=?,sort_order=?,parent_id=? WHERE id=?").bind(name,nameMl||null,nameHi||null,slug,description,icon,active,sortOrder,parentId,id).run(); else await env.DB.prepare("INSERT INTO categories (name,name_ml,name_hi,slug,description,icon,active,sort_order,parent_id) VALUES (?,?,?,?,?,?,?,?,?)").bind(name,nameMl||null,nameHi||null,slug,description,icon,active,sortOrder,parentId).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
       }
       if (path === "/api/admin/categories" && request.method === "DELETE") {
         if(!isMainAdmin)return respond({error:"Only the super admin can permanently delete categories."},403);
@@ -827,17 +827,27 @@ export default {
         if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Please sign in with a customer account."},401);
         const body=await request.json();
         const category=String(body.category||"").trim().slice(0,100);
-        const location=String(body.service_location||"").trim().slice(0,300);        
+        const subcategory=String(body.subcategory||"").trim().slice(0,100);
+        const location=String(body.service_location||"").trim().slice(0,300);
         const locationKey=location.split(",")[0].trim();
         const details=String(body.details||"").trim().slice(0,2000);
         const phone=String(body.customer_phone||"").trim().slice(0,60);
         const date=String(body.service_date||"").trim().slice(0,40);
-        if(!category||!location||!details||!phone) return respond({error:"Choose a service, enter the location, describe the job and provide a contact number."},400);
-        const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
-        if(!cat) return respond({error:"Choose a valid active service category."},400);
-        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,"%"+locationKey+"%","%"+locationKey+"%","%"+locationKey+"%").all();
+        if(!category||!location||!details||!phone) return respond({error:"Choose a main category, enter the location, describe the job and provide a contact number."},400);
+        const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND parent_id IS NULL AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
+        if(!cat) return respond({error:"Choose a valid active main service category."},400);
+        const childCount=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=? AND active=1").bind(cat.id).first();
+        let subcatId=null;
+        if(subcategory){
+          const sub=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND parent_id=? AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(cat.id,subcategory,subcategory).first();
+          if(!sub)return respond({error:"Choose a valid subcategory under the selected main category."},400);
+          subcatId=sub.id;
+        }else if(Number(childCount?.total||0)>0){
+          return respond({error:"Please choose a service subcategory."},400);
+        }
+        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (? IS NULL OR subcategory_id=?) AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,subcatId,subcatId,"%"+locationKey+"%","%"+locationKey+"%","%"+locationKey+"%").all();
         if(!providers.results?.length) return respond({error:"No active providers were found for this service in that area. Try a nearby town or district."},404);
-        const result=await env.DB.prepare("INSERT INTO service_requests (customer_account_id,customer_name,customer_phone,category_id,service_location,service_date,details) VALUES (?,?,?,?,?,?,?)").bind(account.id,account.display_name,phone,cat.id,location,date||null,details).run();
+        const result=await env.DB.prepare("INSERT INTO service_requests (customer_account_id,customer_name,customer_phone,category_id,subcategory_id,service_location,service_date,details) VALUES (?,?,?,?,?,?,?,?)").bind(account.id,account.display_name,phone,cat.id,subcatId,location,date||null,details).run();
         const requestId=result.meta.last_row_id;
         const inserts=providers.results.map(p=>env.DB.prepare("INSERT INTO service_request_recipients (request_id,provider_id) VALUES (?,?)").bind(requestId,p.id));
         await env.DB.batch(inserts);
@@ -846,7 +856,7 @@ export default {
       if (path === "/api/customer/service-requests" && request.method === "GET") {
         const account=await getAccount(request,env.DB);
         if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account."},401);
-        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.status,r.created_at,c.name AS category_name,x.provider_id,p.business_name,x.status AS provider_status,x.quote,x.quote_note,x.response_at,CASE WHEN r.selected_provider_id=x.provider_id THEN 1 ELSE 0 END AS selected FROM service_requests r JOIN categories c ON c.id=r.category_id JOIN service_request_recipients x ON x.request_id=r.id JOIN providers p ON p.id=x.provider_id WHERE r.customer_account_id=? ORDER BY r.created_at DESC,x.created_at ASC LIMIT 300").bind(account.id).all();
+        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.status,r.created_at,c.name AS category_name,sc.name AS subcategory_name,x.provider_id,p.business_name,x.status AS provider_status,x.quote,x.quote_note,x.response_at,CASE WHEN r.selected_provider_id=x.provider_id THEN 1 ELSE 0 END AS selected FROM service_requests r JOIN categories c ON c.id=r.category_id LEFT JOIN categories sc ON sc.id=r.subcategory_id JOIN service_request_recipients x ON x.request_id=r.id JOIN providers p ON p.id=x.provider_id WHERE r.customer_account_id=? ORDER BY r.created_at DESC,x.created_at ASC LIMIT 300").bind(account.id).all();
         const grouped=new Map();
         for(const row of rows.results||[]){if(!grouped.has(row.id)){const {provider_id,business_name,provider_status,quote,quote_note,response_at,selected,...request}=row;grouped.set(row.id,{...request,providers:[]});}grouped.get(row.id).providers.push({provider_id:row.provider_id,business_name:row.business_name,status:row.provider_status,quote:row.quote,quote_note:row.quote_note,response_at:row.response_at,selected:!!row.selected});}
         return respond({requests:[...grouped.values()]});
@@ -854,7 +864,7 @@ export default {
       if (path === "/api/provider/service-requests" && request.method === "GET") {
         const account=await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
-        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.created_at,c.name AS category_name,x.status,x.quote,x.quote_note,x.response_at FROM service_request_recipients x JOIN service_requests r ON r.id=x.request_id JOIN categories c ON c.id=r.category_id WHERE x.provider_id=? ORDER BY r.created_at DESC LIMIT 200").bind(account.provider_id).all();
+        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.created_at,c.name AS category_name,sc.name AS subcategory_name,x.status,x.quote,x.quote_note,x.response_at FROM service_request_recipients x JOIN service_requests r ON r.id=x.request_id JOIN categories c ON c.id=r.category_id LEFT JOIN categories sc ON sc.id=r.subcategory_id WHERE x.provider_id=? ORDER BY r.created_at DESC LIMIT 200").bind(account.provider_id).all();
         return respond({requests:rows.results||[]});
       }
       if (path === "/api/provider/service-request-response" && request.method === "POST") {
