@@ -441,6 +441,70 @@ h1 em{font-style:normal;color:var(--g)}
 }
 
 
+/* Mobile search visibility: keep Search Locally and language beside the logo,
+   then show the full search field (including microphone) on the next row. */
+@media (max-width: 640px) {
+  .nav-inner {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding: 10px 0 !important;
+  }
+  .nav-inner > .brand {
+    order: 1 !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 110px;
+  }
+  .nav-inner > #searchLocallyBtn {
+    order: 2 !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    margin: 0 !important;
+    padding: 4px 5px !important;
+    display: inline-flex !important;
+    align-items: center;
+    font-size: 12px !important;
+  }
+  .nav-inner > #languageToggle {
+    order: 3 !important;
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: 92px;
+    min-height: 36px;
+    height: 36px;
+    padding: 4px 6px !important;
+    font-size: 11px !important;
+  }
+  .nav-inner > .header-search-wrap {
+    order: 4 !important;
+    display: block !important;
+    flex: 1 0 100% !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+  .nav-inner .header-search {
+    display: flex !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 44px !important;
+    min-width: 0 !important;
+  }
+  .nav-inner > .links { display: none !important; }
+}
+@media (max-width: 360px) {
+  .nav-inner > .brand { min-width: 90px; }
+  .nav-inner > #searchLocallyBtn { font-size: 11px !important; gap: 3px !important; }
+  .nav-inner > #languageToggle { max-width: 82px; font-size: 10px !important; }
+}
+
 /* Voice search control */
 .header-search .voice-search-toggle{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border:0;border-radius:10px;background:transparent;color:var(--primary,#173c69);cursor:pointer}
 .header-search .voice-search-toggle:hover{background:#20b48618}
