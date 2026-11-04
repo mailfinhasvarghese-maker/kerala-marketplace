@@ -1251,7 +1251,7 @@ async function loadProviders() {
     images: (p.images || []).slice(0,5).map(img => ({id:Number(img.id),url:'https://kerala-marketplace-api-v2.abmg-events.workers.dev'+img.url})),
     name: p.business_name || 'Local provider',
     category,
-    service: p.category_name || 'Local service',
+    service: [p.category_name,p.subcategory_name].filter(Boolean).join(' · ') || 'Local service',
     location: p.district || 'Kerala',
     town: p.town || '',
     latitude: p.latitude===null||p.latitude===undefined||p.latitude===''?null:Number(p.latitude),
@@ -1271,6 +1271,7 @@ async function loadProviders() {
     tags: [
       p.business_name,
       p.category_name,
+      p.subcategory_name,
       p.district,
       p.town,
       p.description
