@@ -1472,7 +1472,8 @@ function openModal(type, p = null) {
         ['Mobile number', 'phone', 'tel', 'Your contact number'],
         ['Email for sign-in', 'email', 'email', 'you@example.com'],
         ['Password (10+ characters)', 'password', 'password', 'Create a password'],
-        ['Service category', 'service', 'select', ''],
+        ['Main service category', 'service', 'select', ''],
+        ['Service subcategory', 'subcategory', 'select', ''],
         ['District', 'district', 'select', ''],
         ['Town / locality', 'town', 'text', 'e.g. Aluva'],
         ['Street address', 'address', 'text', 'Service location or landmark'],
@@ -1495,9 +1496,11 @@ function openModal(type, p = null) {
 
     if (x[1] === 'service') {
       html += '<select id="' + id + '" required>' +
-        '<option value="">Choose a category</option>' +
-        serviceCategories.map(c => '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>').join('') +
+        '<option value="">Choose main category</option>' +
+        serviceCategories.filter(c=>!c.parent_id).map(c => '<option value="' + esc(c.slug) + '">' + esc(c.name) + '</option>').join('') +
         '</select>';
+    } else if (x[1] === 'subcategory') {
+      html += '<select id="' + id + '" required disabled><option value="">Choose main category first</option></select>';
     } else if (x[1] === 'district') {
       html += '<select id="' + id + '" required>' +
         '<option value="">Choose district</option>' +
@@ -1527,6 +1530,11 @@ function openModal(type, p = null) {
 
     return html + '</div>';
   }).join('');
+  if(type==='provider'){
+    const main=$('f_service'),sub=$('f_subcategory');
+    const populate=()=>{const parent=serviceCategories.find(c=>!c.parent_id&&c.slug===main.value);const children=parent?serviceCategories.filter(c=>Number(c.parent_id)===Number(parent.id)):[];sub.innerHTML='<option value="">Choose subcategory</option>'+children.map(c=>'<option value="'+esc(c.slug)+'">'+esc(c.name)+'</option>').join('');sub.disabled=!children.length;sub.required=children.length>0;if(!children.length)sub.innerHTML='<option value="">No subcategories available</option>';};
+    main.addEventListener('change',populate);populate();
+  }
   if (type === 'provider' && authToken && currentAccount) {
     const emailField = $('f_email');
     const passwordField = $('f_password');
@@ -1839,6 +1847,7 @@ $('requestForm').addEventListener('submit', async e => {
         business_name: $('f_business').value.trim(),
         phone: $('f_phone').value.trim(),
         category: $('f_service').value.trim(),
+        subcategory: $('f_subcategory').value.trim(),
         district: $('f_district').value.trim(),
         town: $('f_town').value.trim(),
         address: $('f_address').value.trim(),
