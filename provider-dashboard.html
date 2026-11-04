@@ -240,7 +240,6 @@ async function refreshDashboard(){const btn=$('refreshBtn');btn.disabled=true;bt
 $('refreshBtn').addEventListener('click',refreshDashboard);$('jumpBookings').addEventListener('click',()=>$('bookings').scrollIntoView({behavior:'smooth'}));
 $('signOut').addEventListener('click',async()=>{try{await jsonFetch('/api/auth/logout',{method:'POST'});}catch(e){}localStorage.removeItem('nattukaar_token');location.href='/';});
 init();
-loadInstantRequests();
 </script><script src="/nattukaar-i18n.js"></script>
 </body>
 </html>
