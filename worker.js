@@ -41,7 +41,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT 'grid', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   const catInfo = await db.prepare("PRAGMA table_info(categories)").all();
   const catCols = new Set((catInfo.results || []).map(x => x.name));
-  for (const [n,t] of [["description","TEXT"],["name_ml","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"],["parent_id","INTEGER"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
+  for (const [n,t] of [["description","TEXT"],["name_ml","TEXT"],["name_hi","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"],["parent_id","INTEGER"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
 }
 async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
@@ -340,7 +340,7 @@ export default {
       }
 
       if (path === "/api/categories" && request.method === "GET") {
-        const result = await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,sort_order,parent_id FROM categories WHERE active=1 ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
+        const result = await env.DB.prepare("SELECT id,name,name_ml,name_hi,slug,description,icon,sort_order,parent_id FROM categories WHERE active=1 ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
         return respond({categories:result.results||[]});
       }
       if (path === "/api/admin/bootstrap" && request.method === "POST") {
@@ -374,18 +374,18 @@ export default {
       }
       if (path === "/api/admin/categories" && request.method === "GET") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
-        const result=await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,active,sort_order,parent_id FROM categories ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
+        const result=await env.DB.prepare("SELECT id,name,name_ml,name_hi,slug,description,icon,active,sort_order,parent_id FROM categories ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
         return respond({categories:result.results||[]});
       }
       if (path === "/api/admin/categories" && request.method === "POST") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const body=await request.json();
-        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), nameMl=String(body.name_ml||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100, parentId=Number.parseInt(body.parent_id,10)||null;
+        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), nameMl=String(body.name_ml||"").trim().slice(0,100), nameHi=String(body.name_hi||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100, parentId=Number.parseInt(body.parent_id,10)||null;
         if(icon!=="grid"&&(!icon.startsWith("data:image/png;base64,")||icon.length>82000||!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(icon)))return respond({error:"Category icon must be a PNG image no larger than 60 KB."},400);
         const slug=String(body.slug||name).trim().toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
         if(!name||!slug)return respond({error:"Category name is required."},400);
         if(parentId){const parent=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE id=?").bind(parentId).first();if(!parent||parent.parent_id||parentId===id)return respond({error:"Choose a valid main category. Subcategories cannot have another parent."},400);if(id>0){const children=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=?").bind(id).first();if(Number(children?.total||0)>0)return respond({error:"Move or remove this category's subcategories before changing its level."},400);}}
-        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,name_ml=?,slug=?,description=?,icon=?,active=?,sort_order=?,parent_id=? WHERE id=?").bind(name,nameMl||null,slug,description,icon,active,sortOrder,parentId,id).run(); else await env.DB.prepare("INSERT INTO categories (name,name_ml,slug,description,icon,active,sort_order,parent_id) VALUES (?,?,?,?,?,?,?,?)").bind(name,nameMl||null,slug,description,icon,active,sortOrder,parentId).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
+        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,name_ml=?,name_hi=?,slug=?,description=?,icon=?,active=?,sort_order=?,parent_id=? WHERE id=?").bind(name,nameMl||null,nameHi||null,slug,description,icon,active,sortOrder,parentId,id).run(); else await env.DB.prepare("INSERT INTO categories (name,name_ml,name_hi,slug,description,icon,active,sort_order,parent_id) VALUES (?,?,?,?,?,?,?,?,?)").bind(name,nameMl||null,nameHi||null,slug,description,icon,active,sortOrder,parentId).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
       }
       if (path === "/api/admin/categories" && request.method === "DELETE") {
         if(!isMainAdmin)return respond({error:"Only the super admin can permanently delete categories."},403);
