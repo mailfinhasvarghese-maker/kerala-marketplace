@@ -827,17 +827,27 @@ export default {
         if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Please sign in with a customer account."},401);
         const body=await request.json();
         const category=String(body.category||"").trim().slice(0,100);
-        const location=String(body.service_location||"").trim().slice(0,300);        
+        const subcategory=String(body.subcategory||"").trim().slice(0,100);
+        const location=String(body.service_location||"").trim().slice(0,300);
         const locationKey=location.split(",")[0].trim();
         const details=String(body.details||"").trim().slice(0,2000);
         const phone=String(body.customer_phone||"").trim().slice(0,60);
         const date=String(body.service_date||"").trim().slice(0,40);
-        if(!category||!location||!details||!phone) return respond({error:"Choose a service, enter the location, describe the job and provide a contact number."},400);
-        const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
-        if(!cat) return respond({error:"Choose a valid active service category."},400);
-        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,"%"+locationKey+"%","%"+locationKey+"%","%"+locationKey+"%").all();
+        if(!category||!location||!details||!phone) return respond({error:"Choose a main category, enter the location, describe the job and provide a contact number."},400);
+        const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND parent_id IS NULL AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
+        if(!cat) return respond({error:"Choose a valid active main service category."},400);
+        const childCount=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=? AND active=1").bind(cat.id).first();
+        let subcatId=null;
+        if(subcategory){
+          const sub=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND parent_id=? AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(cat.id,subcategory,subcategory).first();
+          if(!sub)return respond({error:"Choose a valid subcategory under the selected main category."},400);
+          subcatId=sub.id;
+        }else if(Number(childCount?.total||0)>0){
+          return respond({error:"Please choose a service subcategory."},400);
+        }
+        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (? IS NULL OR subcategory_id=?) AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,subcatId,subcatId,"%"+locationKey+"%","%"+locationKey+"%","%"+locationKey+"%").all();
         if(!providers.results?.length) return respond({error:"No active providers were found for this service in that area. Try a nearby town or district."},404);
-        const result=await env.DB.prepare("INSERT INTO service_requests (customer_account_id,customer_name,customer_phone,category_id,service_location,service_date,details) VALUES (?,?,?,?,?,?,?)").bind(account.id,account.display_name,phone,cat.id,location,date||null,details).run();
+        const result=await env.DB.prepare("INSERT INTO service_requests (customer_account_id,customer_name,customer_phone,category_id,subcategory_id,service_location,service_date,details) VALUES (?,?,?,?,?,?,?,?)").bind(account.id,account.display_name,phone,cat.id,subcatId,location,date||null,details).run();
         const requestId=result.meta.last_row_id;
         const inserts=providers.results.map(p=>env.DB.prepare("INSERT INTO service_request_recipients (request_id,provider_id) VALUES (?,?)").bind(requestId,p.id));
         await env.DB.batch(inserts);
@@ -846,7 +856,7 @@ export default {
       if (path === "/api/customer/service-requests" && request.method === "GET") {
         const account=await getAccount(request,env.DB);
         if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account."},401);
-        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.status,r.created_at,c.name AS category_name,x.provider_id,p.business_name,x.status AS provider_status,x.quote,x.quote_note,x.response_at,CASE WHEN r.selected_provider_id=x.provider_id THEN 1 ELSE 0 END AS selected FROM service_requests r JOIN categories c ON c.id=r.category_id JOIN service_request_recipients x ON x.request_id=r.id JOIN providers p ON p.id=x.provider_id WHERE r.customer_account_id=? ORDER BY r.created_at DESC,x.created_at ASC LIMIT 300").bind(account.id).all();
+        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.status,r.created_at,c.name AS category_name,sc.name AS subcategory_name,x.provider_id,p.business_name,x.status AS provider_status,x.quote,x.quote_note,x.response_at,CASE WHEN r.selected_provider_id=x.provider_id THEN 1 ELSE 0 END AS selected FROM service_requests r JOIN categories c ON c.id=r.category_id LEFT JOIN categories sc ON sc.id=r.subcategory_id JOIN service_request_recipients x ON x.request_id=r.id JOIN providers p ON p.id=x.provider_id WHERE r.customer_account_id=? ORDER BY r.created_at DESC,x.created_at ASC LIMIT 300").bind(account.id).all();
         const grouped=new Map();
         for(const row of rows.results||[]){if(!grouped.has(row.id)){const {provider_id,business_name,provider_status,quote,quote_note,response_at,selected,...request}=row;grouped.set(row.id,{...request,providers:[]});}grouped.get(row.id).providers.push({provider_id:row.provider_id,business_name:row.business_name,status:row.provider_status,quote:row.quote,quote_note:row.quote_note,response_at:row.response_at,selected:!!row.selected});}
         return respond({requests:[...grouped.values()]});
