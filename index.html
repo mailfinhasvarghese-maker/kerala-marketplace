@@ -1350,7 +1350,7 @@ async function loadPublishedReviews(providerId) {
 
 
 function authHeaders(extra={}) { return {...extra, ...(authToken ? {Authorization:'Bearer '+authToken} : {})}; }
-function updateAuthButtons() { const authLabel=$('authButtonLabel'); if(authLabel)authLabel.textContent=currentAccount?'Hi, '+(currentAccount.display_name||currentAccount.email.split('@')[0]):'Customer sign in'; const accountButton=$('accountOpen'); if(accountButton){accountButton.style.display='inline-block';accountButton.textContent=currentAccount&&currentAccount.role==='provider'?'Provider dashboard':'My bookings';} }
+function updateAuthButtons() { const authLabel=$('authButtonLabel'); if(authLabel)authLabel.textContent=currentAccount?'Hi, '+(currentAccount.display_name||currentAccount.email.split('@')[0]):'Customer sign in'; const accountButton=$('accountOpen'); if(accountButton){accountButton.style.display='inline-block';accountButton.textContent='My bookings';} }
 function openAuth(mode='login') {
   authMode=mode;
   $('authTitle').textContent=mode==='register'?'Create customer account':'Sign in to Nattukaar';
@@ -1365,19 +1365,19 @@ function openAuth(mode='login') {
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
 async function refreshAccount(){
   if(!authToken){currentAccount=null;updateAuthButtons();return;}
-  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;updateAuthButtons();if(currentAccount&&currentAccount.role==='provider'&&location.pathname!=='/provider-dashboard.html'){location.replace('/provider-dashboard.html');return;}if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
+  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
   catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;updateAuthButtons();}
 }
 async function openAccount(){
   if(!authToken){openAuth('login');return;} await refreshAccount(); if(!currentAccount){openAuth('login');return;}
-  $('accountTitle').textContent=currentAccount.role==='provider'?'Provider dashboard':'My bookings';$('accountSubtitle').textContent=(currentAccount.role==='provider'?'Hi, ':'Signed in as ')+(currentAccount.display_name||currentAccount.email)+' · '+currentAccount.email;$('accountContent').innerHTML='<p>Loading bookings…</p>';$('accountBg').classList.add('open');document.body.style.overflow='hidden';
+  $('accountTitle').textContent=false?'Provider dashboard':'My bookings';$('accountSubtitle').textContent=(false?'Hi, ':'Signed in as ')+(currentAccount.display_name||currentAccount.email)+' · '+currentAccount.email;$('accountContent').innerHTML='<p>Loading bookings…</p>';$('accountBg').classList.add('open');document.body.style.overflow='hidden';
   try{
-    const path=currentAccount.role==='provider'?'/api/provider/bookings':'/api/customer/bookings';
+    const path='/api/customer/bookings';
     const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev'+path,{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load bookings.');
     const bookings=d.bookings||[];
     $('accountContent').innerHTML=bookings.length?bookings.map(function(b){
-      let html='<article style="border:1px solid var(--line);border-radius:14px;padding:15px;margin:12px 0;background:#fff"><strong>'+(currentAccount.role==='provider'?'Booking #'+esc(b.id):esc(b.business_name||('Booking #'+b.id)))+'</strong><p style="font-size:12px;line-height:1.8">Status: <b>'+esc(b.status)+'</b><br>Booking #'+esc(b.id)+' · '+esc(b.service_date||'Date not set')+'<br>Location: '+esc(b.service_location||'Not provided')+'<br>Details: '+esc(b.details||'No extra details')+'</p>';
-      if(currentAccount.role==='provider'){
+      let html='<article style="border:1px solid var(--line);border-radius:14px;padding:15px;margin:12px 0;background:#fff"><strong>'+(false?'Booking #'+esc(b.id):esc(b.business_name||('Booking #'+b.id)))+'</strong><p style="font-size:12px;line-height:1.8">Status: <b>'+esc(b.status)+'</b><br>Booking #'+esc(b.id)+' · '+esc(b.service_date||'Date not set')+'<br>Location: '+esc(b.service_location||'Not provided')+'<br>Details: '+esc(b.details||'No extra details')+'</p>';
+      if(false){
         html+='<div style="background:#faf7fd;padding:12px;border-radius:10px;margin:10px 0"><b>Customer: '+esc(b.customer_name||'Customer')+'</b><p style="font-size:12px;margin:6px 0">Phone: '+esc(b.customer_phone||'Not provided')+'<br>Email: '+esc(b.customer_email||'Not provided')+'</p><div style="display:flex;gap:7px;flex-wrap:wrap">';
         if(b.customer_phone){const digits=String(b.customer_phone).replace(/[^0-9]/g,'');html+='<a class="btn outline" href="tel:'+esc(b.customer_phone)+'">Call customer</a><a class="btn light" target="_blank" rel="noopener" href="https://wa.me/'+esc(digits)+'">WhatsApp message</a><a class="btn outline" target="_blank" rel="noopener" href="https://wa.me/'+esc(digits)+'">WhatsApp call (open chat)</a>';}
         if(b.customer_email)html+='<a class="btn outline" href="mailto:'+esc(b.customer_email)+'">Email</a>';
@@ -1396,7 +1396,7 @@ async function openAccount(){
       }
       return html+'</article>';
     }).join(''):'<p>No direct bookings yet.</p>';
-    if(currentAccount.role==='customer'){
+    if(true){
       const sr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/customer/service-requests',{headers:authHeaders()});
       const sd=await sr.json();if(!sr.ok)throw Error(sd.error||'Could not load service requests.');
       const requests=sd.requests||[];
@@ -1649,7 +1649,7 @@ if(headerSearchForm&&headerSearchInput){
 }
 if(advancedSearchToggle&&advancedSearchPanel){advancedSearchToggle.addEventListener('click',()=>{const opening=advancedSearchPanel.hidden;advancedSearchPanel.hidden=!opening;advancedSearchToggle.setAttribute('aria-expanded',String(opening));if(opening)advancedSearchPanel.scrollIntoView({behavior:'smooth',block:'nearest'});});}
 $('authOpen').addEventListener('click',function(){currentAccount?openAccount():openAuth('login');});
-const accountOpenButton=$('accountOpen'); if(accountOpenButton)accountOpenButton.addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();if(currentAccount&&currentAccount.role==='provider'){location.href='/provider-dashboard.html';return;}openAccount();});
+const accountOpenButton=$('accountOpen'); if(accountOpenButton)accountOpenButton.addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();openAccount();});
 $('authClose').addEventListener('click',closeAuth);
 $('accountClose').addEventListener('click',function(){$('accountBg').classList.remove('open');document.body.style.overflow='';});
 $('authBg').addEventListener('click',function(e){if(e.target===$('authBg'))closeAuth();});
@@ -1660,7 +1660,7 @@ $('authForm').addEventListener('submit',async function(e){
  try{const payload={email:$('auth_email').value.trim(),password:$('auth_password').value};if(authMode==='register')payload.display_name=$('auth_displayName').value.trim();
  const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/'+(authMode==='register'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw Error(d.error||'Sign in failed.');
  authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;updateAuthButtons();closeAuth();
- if(currentAccount&&currentAccount.role==='provider'){window.location.assign('/provider-dashboard.html');return;}
+ 
  toast('Signed in successfully.');
  if(pendingProvider){const p=pendingProvider;pendingProvider=null;openModal('booking',p);}
  }catch(err){$('authMessage').textContent=err.message;}finally{btn.disabled=false;}
