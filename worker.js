@@ -29,7 +29,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
-  const additions = {providers:[["latitude","REAL"],["longitude","REAL"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
+  const additions = {categories:[["parent_id","INTEGER"]],providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
     const info = await db.prepare("PRAGMA table_info("+table+")").all();
     const names = new Set((info.results||[]).map(x=>x.name));
@@ -339,7 +339,7 @@ export default {
       }
 
       if (path === "/api/categories" && request.method === "GET") {
-        const result = await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,sort_order FROM categories WHERE active=1 ORDER BY sort_order,name").all();
+        const result = await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,sort_order,parent_id FROM categories WHERE active=1 ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
         return respond({categories:result.results||[]});
       }
       if (path === "/api/admin/bootstrap" && request.method === "POST") {
@@ -373,24 +373,25 @@ export default {
       }
       if (path === "/api/admin/categories" && request.method === "GET") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
-        const result=await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,active,sort_order FROM categories ORDER BY sort_order,name").all();
+        const result=await env.DB.prepare("SELECT id,name,name_ml,slug,description,icon,active,sort_order,parent_id FROM categories ORDER BY COALESCE(parent_id,id),parent_id,sort_order,name").all();
         return respond({categories:result.results||[]});
       }
       if (path === "/api/admin/categories" && request.method === "POST") {
         if(!canManageCategories)return respond({error:"You do not have permission to manage categories."},403);
         const body=await request.json();
-        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), nameMl=String(body.name_ml||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100;
+        const id=Number.parseInt(body.id,10)||0, name=String(body.name||"").trim().slice(0,100), nameMl=String(body.name_ml||"").trim().slice(0,100), description=String(body.description||"").trim().slice(0,300), icon=String(body.icon||"grid").trim(), active=body.active===false?0:1, sortOrder=Number.parseInt(body.sort_order,10)||100, parentId=Number.parseInt(body.parent_id,10)||null;
         if(icon!=="grid"&&(!icon.startsWith("data:image/png;base64,")||icon.length>82000||!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(icon)))return respond({error:"Category icon must be a PNG image no larger than 60 KB."},400);
         const slug=String(body.slug||name).trim().toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
         if(!name||!slug)return respond({error:"Category name is required."},400);
-        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,name_ml=?,slug=?,description=?,icon=?,active=?,sort_order=? WHERE id=?").bind(name,nameMl||null,slug,description,icon,active,sortOrder,id).run(); else await env.DB.prepare("INSERT INTO categories (name,name_ml,slug,description,icon,active,sort_order) VALUES (?,?,?,?,?,?,?)").bind(name,nameMl||null,slug,description,icon,active,sortOrder).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
+        if(parentId){const parent=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE id=?").bind(parentId).first();if(!parent||parent.parent_id||parentId===id)return respond({error:"Choose a valid main category. Subcategories cannot have another parent."},400);}
+        try { if(id>0) await env.DB.prepare("UPDATE categories SET name=?,name_ml=?,slug=?,description=?,icon=?,active=?,sort_order=?,parent_id=? WHERE id=?").bind(name,nameMl||null,slug,description,icon,active,sortOrder,parentId,id).run(); else await env.DB.prepare("INSERT INTO categories (name,name_ml,slug,description,icon,active,sort_order,parent_id) VALUES (?,?,?,?,?,?,?,?)").bind(name,nameMl||null,slug,description,icon,active,sortOrder,parentId).run(); return respond({ok:true,message:id>0?"Category updated.":"Category created."}); } catch(error) { if(String(error.message||"").includes("UNIQUE"))return respond({error:"Category name or slug already exists."},409); throw error; }
       }
       if (path === "/api/admin/categories" && request.method === "DELETE") {
         if(!isMainAdmin)return respond({error:"Only the super admin can permanently delete categories."},403);
         const id=Number.parseInt(url.searchParams.get("id"),10);
         if(!Number.isInteger(id)||id<1)return respond({error:"A valid category ID is required."},400);
-        const linked=await env.DB.prepare("SELECT COUNT(*) AS total FROM providers WHERE category_id=?").bind(id).first();
-        if(Number(linked?.total||0)>0)return respond({error:"This category is assigned to "+linked.total+" provider(s). Reassign those providers or deactivate the category instead."},409);
+        const linked=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM providers WHERE category_id=? OR subcategory_id=?) + (SELECT COUNT(*) FROM categories WHERE parent_id=?) AS total").bind(id,id,id).first();
+        if(Number(linked?.total||0)>0)return respond({error:"This category is in use by "+linked.total+" provider(s) or subcategories. Reassign or move them first, or deactivate it."},409);
         const deleted=await env.DB.prepare("DELETE FROM categories WHERE id=?").bind(id).run();
         if(!deleted.meta?.changes)return respond({error:"Category not found."},404);
         return respond({ok:true,message:"Category deleted."});
@@ -522,11 +523,12 @@ export default {
           "p.id, p.business_name, p.contact_name, p.phone, p.email, " +
           "p.district, p.town, p.address, p.description, p.latitude, p.longitude, " +
           "p.years_experience, p.created_at, " +
-          "c.name AS category_name, c.slug AS category_slug, " +
+          "c.name AS category_name, c.slug AS category_slug, sc.name AS subcategory_name, sc.slug AS subcategory_slug, " +
           "ROUND(AVG(CASE WHEN r.status = 'published' THEN r.rating END), 1) AS average_rating, " +
           "COUNT(CASE WHEN r.status = 'published' THEN r.id END) AS review_count " +
           "FROM providers p " +
           "LEFT JOIN categories c ON c.id = p.category_id " +
+          "LEFT JOIN categories sc ON sc.id = p.subcategory_id " +
           "LEFT JOIN customer_reviews r ON r.provider_id = p.id " +
           "WHERE " + conditions.join(" AND ") + " " +
           "GROUP BY p.id " +
