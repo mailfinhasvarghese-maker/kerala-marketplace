@@ -808,14 +808,14 @@ export default {
         if(!account || account.role!=="customer") return respond({error:"Please sign in with a customer account."},401);
         const body=await request.json();
         const category=String(body.category||"").trim().slice(0,100);
-        const location=String(body.service_location||"").trim().slice(0,300);
+        const location=String(body.service_location||"").trim().slice(0,300);\n        const locationKey=location.split(",")[0].trim();
         const details=String(body.details||"").trim().slice(0,2000);
         const phone=String(body.customer_phone||"").trim().slice(0,60);
         const date=String(body.service_date||"").trim().slice(0,40);
         if(!category||!location||!details||!phone) return respond({error:"Choose a service, enter the location, describe the job and provide a contact number."},400);
         const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
         if(!cat) return respond({error:"Choose a valid active service category."},400);
-        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,"%"+location+"%","%"+location+"%","%"+location+"%").all();
+        const providers=await env.DB.prepare("SELECT id FROM providers WHERE status='active' AND category_id=? AND (LOWER(COALESCE(town,'')) LIKE LOWER(?) OR LOWER(COALESCE(district,'')) LIKE LOWER(?) OR LOWER(COALESCE(address,'')) LIKE LOWER(?)) ORDER BY id LIMIT 30").bind(cat.id,"%"+locationKey+"%","%"+locationKey+"%","%"+locationKey+"%").all();
         if(!providers.results?.length) return respond({error:"No active providers were found for this service in that area. Try a nearby town or district."},404);
         const result=await env.DB.prepare("INSERT INTO service_requests (customer_account_id,customer_name,customer_phone,category_id,service_location,service_date,details) VALUES (?,?,?,?,?,?,?)").bind(account.id,account.display_name,phone,cat.id,location,date||null,details).run();
         const requestId=result.meta.last_row_id;
