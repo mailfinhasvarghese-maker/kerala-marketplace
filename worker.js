@@ -195,7 +195,7 @@ export default {
           const row = await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND LOWER(slug)=LOWER(?) OR active=1 AND LOWER(name)=LOWER(?) LIMIT 1").bind(categoryValue,categoryValue).first();
           if (row && !row.parent_id) categoryId = row.id;
         }
-        const subValue=String(body.subcategory||"").trim();if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||!categoryId||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
+        if(!categoryId)return respond({error:"Choose a valid active main service category."},400);const subValue=String(body.subcategory||"").trim();const childCount=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=? AND active=1").bind(categoryId).first();if(Number(childCount?.total||0)>0&&!subValue)return respond({error:"Choose a service subcategory."},400);if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
         const current = await env.DB.prepare("SELECT status FROM providers WHERE id=?").bind(account.provider_id).first();
         if (!current) return respond({error:"Provider profile not found."},404);
         await env.DB.prepare(
@@ -615,7 +615,7 @@ export default {
             categoryId = categoryRow.id;
           }
         }
-        const subValue=String(body.subcategory||"").trim();if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||!categoryId||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
+        if(!categoryId)return respond({error:"Choose a valid active main service category."},400);const subValue=String(body.subcategory||"").trim();const childCount=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=? AND active=1").bind(categoryId).first();if(Number(childCount?.total||0)>0&&!subValue)return respond({error:"Choose a service subcategory."},400);if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
 
         const insertSql =
           "INSERT INTO providers (" +
