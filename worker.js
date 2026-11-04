@@ -864,7 +864,7 @@ export default {
       if (path === "/api/provider/service-requests" && request.method === "GET") {
         const account=await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
-        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.created_at,c.name AS category_name,x.status,x.quote,x.quote_note,x.response_at FROM service_request_recipients x JOIN service_requests r ON r.id=x.request_id JOIN categories c ON c.id=r.category_id WHERE x.provider_id=? ORDER BY r.created_at DESC LIMIT 200").bind(account.provider_id).all();
+        const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.created_at,c.name AS category_name,sc.name AS subcategory_name,x.status,x.quote,x.quote_note,x.response_at FROM service_request_recipients x JOIN service_requests r ON r.id=x.request_id JOIN categories c ON c.id=r.category_id LEFT JOIN categories sc ON sc.id=r.subcategory_id WHERE x.provider_id=? ORDER BY r.created_at DESC LIMIT 200").bind(account.provider_id).all();
         return respond({requests:rows.results||[]});
       }
       if (path === "/api/provider/service-request-response" && request.method === "POST") {
