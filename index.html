@@ -986,18 +986,19 @@ const $ = id => document.getElementById(id);
  function renderCategoryLanguage(){
  if(!Array.isArray(serviceCategories)||!serviceCategories.length)return;
  const ml=currentLanguage==="ml",hi=currentLanguage==="hi",filter=$('catFilter'),cards=$('categoryCards');
+ const mainCategories=serviceCategories.filter(c=>!c.parent_id);
  const name=c=>ml?(c.name_ml||c.name):hi?(c.name_hi||c.name):c.name;
  const all=ml?"എല്ലാ സേവനങ്ങളും":hi?"सभी सेवाएँ":"All services";
  const more=ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":hi?"सभी श्रेणियाँ देखें":"Explore every category";
  if(filter){
   const selected=filter.value||"all";filter.innerHTML="";
   const option=document.createElement("option");option.value="all";option.textContent=all;filter.appendChild(option);
-  serviceCategories.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=name(c);filter.appendChild(o);});
+  mainCategories.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=name(c);filter.appendChild(o);});
   filter.value=selected;
  }
  if(cards){
   cards.innerHTML="";
-  serviceCategories.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat=c.name;const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=name(c);const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");b.append(icon,title,desc);cards.appendChild(b);});
+  mainCategories.forEach(c=>{const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat=c.name;const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=name(c);const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");b.append(icon,title,desc);cards.appendChild(b);});
   const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat="all";b.innerHTML='<strong>'+all+'</strong><small>'+more+'</small>';cards.appendChild(b);
  }
 }
