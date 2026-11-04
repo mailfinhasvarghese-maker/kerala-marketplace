@@ -164,7 +164,7 @@ export default {
         const account = await getAccount(request, env.DB);
         if (!account || account.role !== "provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
         const profile = await env.DB.prepare(
-          "SELECT p.id,p.business_name,p.contact_name,p.phone,p.email,p.district,p.town,p.address,p.description,p.years_experience,p.latitude,p.longitude,p.status,c.name AS category_name,c.slug AS category_slug FROM providers p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?"
+          "SELECT p.id,p.business_name,p.contact_name,p.phone,p.email,p.district,p.town,p.address,p.description,p.years_experience,p.latitude,p.longitude,p.status,c.name AS category_name,c.slug AS category_slug,sc.name AS subcategory_name,sc.slug AS subcategory_slug FROM providers p LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN categories sc ON sc.id=p.subcategory_id WHERE p.id=?"
         ).bind(account.provider_id).first();
         if (!profile) return respond({error:"Provider profile not found."},404);
         return respond({profile});
@@ -187,7 +187,7 @@ export default {
         const lng = body.longitude === "" || body.longitude === null || body.longitude === undefined ? null : Number(body.longitude);
         if (!businessName || !contactName || !phone || !district) return respond({error:"Business name, contact name, phone and district are required."},400);
         if ((lat !== null && (!Number.isFinite(lat)||lat < -90||lat > 90)) || (lng !== null && (!Number.isFinite(lng)||lng < -180||lng > 180)) || ((lat === null) !== (lng === null))) return respond({error:"Choose a valid map location, or clear both coordinates."},400);
-        let categoryId = null;
+        let categoryId = null, subcategoryId = null;
         const category = String(body.category||"").trim();
         const aliases = {"taxi":"taxi-transportation","rentals":"item-equipment-rentals","workers":"labour-skilled-workers","home services":"home-business-services"};
         const categoryValue = aliases[category.toLowerCase()] || category;
@@ -195,11 +195,12 @@ export default {
           const row = await env.DB.prepare("SELECT id FROM categories WHERE LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?) LIMIT 1").bind(categoryValue,categoryValue).first();
           if (row) categoryId = row.id;
         }
+        const subValue=String(body.subcategory||"").trim();if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||!categoryId||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
         const current = await env.DB.prepare("SELECT status FROM providers WHERE id=?").bind(account.provider_id).first();
         if (!current) return respond({error:"Provider profile not found."},404);
         await env.DB.prepare(
-          "UPDATE providers SET business_name=?,contact_name=?,phone=?,email=?,district=?,town=?,address=?,description=?,years_experience=?,category_id=?,latitude=?,longitude=? WHERE id=?"
-        ).bind(businessName,contactName,phone,email||null,district,town||null,address||null,description||null,Number.isFinite(years)?Math.max(0,Math.min(80,years)):0,categoryId,lat,lng,account.provider_id).run();
+          "UPDATE providers SET business_name=?,contact_name=?,phone=?,email=?,district=?,town=?,address=?,description=?,years_experience=?,category_id=?,subcategory_id=?,latitude=?,longitude=? WHERE id=?"
+        ).bind(businessName,contactName,phone,email||null,district,town||null,address||null,description||null,Number.isFinite(years)?Math.max(0,Math.min(80,years)):0,categoryId,subcategoryId,lat,lng,account.provider_id).run();
         return respond({ok:true,message:"Provider profile saved. Public map and search details are updated.",status:current.status});
       }
 
@@ -589,7 +590,7 @@ export default {
           }, 400);
         }
 
-        let categoryId = null;
+        let categoryId = null, subcategoryId = null;
         const submittedCategory = String(body.category || "").trim();
         const categoryAliases = {
           "taxi": "taxi-transportation",
@@ -614,12 +615,13 @@ export default {
             categoryId = categoryRow.id;
           }
         }
+        const subValue=String(body.subcategory||"").trim();if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||!categoryId||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
 
         const insertSql =
           "INSERT INTO providers (" +
           "business_name, contact_name, phone, email, district, " +
-          "town, address, description, years_experience, category_id, status, latitude, longitude" +
-          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)";
+          "town, address, description, years_experience, category_id, subcategory_id, status, latitude, longitude" +
+          ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)";
 
         const result = await env.DB.prepare(insertSql)
           .bind(
@@ -636,6 +638,7 @@ export default {
               Number.parseInt(body.years_experience, 10) || 0
             ),
             categoryId,
+            subcategoryId,
             Number.isFinite(Number(body.latitude)) && body.latitude !== "" && Number(body.latitude) >= -90 && Number(body.latitude) <= 90 ? Number(body.latitude) : null,
             Number.isFinite(Number(body.longitude)) && body.longitude !== "" && Number(body.longitude) >= -180 && Number(body.longitude) <= 180 ? Number(body.longitude) : null
           )
