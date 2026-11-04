@@ -1588,7 +1588,8 @@ function startVoiceSearch(){
  if(!SpeechRecognition){toast('Voice search is not supported in this browser. Please use Chrome or type your search.');return;}
  if(voiceRecognition){stopVoiceSearch();return;}
  const recognition=new SpeechRecognition();voiceRecognition=recognition;
- recognition.lang=currentLanguage==='ml'?'ml-IN':currentLanguage==='hi'?'hi-IN':'en-IN';
+ const selectedLanguage=$('languageToggle')?.value||'en';
+ recognition.lang=selectedLanguage==='ml'?'ml-IN':selectedLanguage==='hi'?'hi-IN':'en-IN';
  recognition.interimResults=false;recognition.maxAlternatives=1;
  recognition.onstart=()=>{voiceSearchButton.setAttribute('aria-pressed','true');voiceSearchButton.title='Listening… tap to stop';voiceSearchButton.setAttribute('aria-label','Listening, tap to stop');};
  recognition.onresult=event=>{
