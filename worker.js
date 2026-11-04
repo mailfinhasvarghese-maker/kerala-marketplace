@@ -155,7 +155,7 @@ export default {
       }
       if (path === "/api/customer/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
-        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account."},401);
         const result = await env.DB.prepare("SELECT b.id,b.provider_id,p.business_name,b.service_date,b.service_location,b.details,b.status,b.created_at,b.provider_quote,b.provider_quote_note,b.customer_counter_offer,b.customer_counter_note,CASE WHEN r.id IS NULL THEN 0 ELSE 1 END AS has_review FROM booking_requests b JOIN providers p ON p.id=b.provider_id LEFT JOIN customer_reviews r ON r.booking_request_id=b.id WHERE b.customer_account_id=? ORDER BY b.created_at DESC LIMIT 200").bind(account.id).all();
         return respond({bookings:result.results||[]});
       }
@@ -284,7 +284,7 @@ export default {
       }
       if (path === "/api/customer/booking-counter-offer" && request.method === "POST") {
         const account = await getAccount(request,env.DB);
-        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account."},401);
         const body = await request.json();
         const id = Number.parseInt(body.booking_request_id,10);
         const offer = Number(body.offer);
@@ -563,11 +563,17 @@ export default {
 
         const accountEmail = String(body.email || "").trim().toLowerCase();
         const accountPassword = String(body.password || "");
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail) || accountPassword.length < 10 || accountPassword.length > 200) {
-          return respond({error:"A valid email and password of at least 10 characters are required to create your provider account."},400);
+        const signedInAccount = await getAccount(request, env.DB);
+        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail)) {
+          return respond({error:"Enter a valid account email address."},400);
         }
-        if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email = ?").bind(accountEmail).first()) {
-          return respond({error:"An account with this email already exists. Please sign in with another email."},409);
+        if (signedInAccount) {
+          if (!["customer","provider"].includes(signedInAccount.role)) return respond({error:"This account cannot register a provider profile."},403);
+          if (signedInAccount.email.toLowerCase() !== accountEmail) return respond({error:"Use the same email address as your signed-in account."},400);
+          if (signedInAccount.provider_id) return respond({error:"A provider profile is already linked to this account. Open your provider dashboard to manage it."},409);
+        } else {
+          if (accountPassword.length < 10 || accountPassword.length > 200) return respond({error:"A password of at least 10 characters is required for a new provider account."},400);
+          if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email = ?").bind(accountEmail).first()) return respond({error:"An account with this email already exists. Sign in first, then add your provider profile."},409);
         }
         const businessName = String(body.business_name || "").trim();
         const contactName = String(body.contact_name || "").trim();
@@ -634,17 +640,25 @@ export default {
           .run();
 
         const providerId = result.meta.last_row_id;
-        const salt = randomToken();
-        const passwordDigest = await derivePassword(accountPassword, salt);
-        const accountResult = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,provider_id) VALUES (?,?,?,?, 'provider', ?)").bind(accountEmail,contactName,salt,passwordDigest,providerId).run();
-        const token = await issueSession(accountResult.meta.last_row_id, env.DB);
+        let accountId, token;
+        if (signedInAccount) {
+          accountId = signedInAccount.id;
+          await env.DB.prepare("UPDATE user_accounts SET role='provider',provider_id=? WHERE id=?").bind(providerId,accountId).run();
+          token = request.headers.get("Authorization").slice(7).trim();
+        } else {
+          const salt = randomToken();
+          const passwordDigest = await derivePassword(accountPassword, salt);
+          const accountResult = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,provider_id) VALUES (?,?,?,?, 'provider', ?)").bind(accountEmail,contactName,salt,passwordDigest,providerId).run();
+          accountId = accountResult.meta.last_row_id;
+          token = await issueSession(accountId, env.DB);
+        }
         return respond({
           ok: true,
-          message: "Provider registration submitted for review. Your provider account is ready.",
+          message: "Provider registration submitted for review. Your existing account is now linked to a provider profile.",
           provider_id: providerId,
           status: "pending",
           token,
-          account: {id:accountResult.meta.last_row_id,email:accountEmail,display_name:contactName,role:"provider",provider_id:providerId}
+          account: {id:accountId,email:accountEmail,display_name:signedInAccount?.display_name||contactName,role:"provider",provider_id:providerId}
         }, 201);
       }
 
@@ -730,7 +744,7 @@ export default {
 
         if (path === "/api/reviews" && request.method === "POST") {
           const account = await getAccount(request,env.DB);
-          if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account to rate a completed booking."},401);
+          if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account to rate a completed booking."},401);
           const body = await request.json();
           const bookingId = Number.parseInt(body.booking_request_id,10);
           const rating = Number.parseInt(body.rating,10);
@@ -805,7 +819,7 @@ export default {
       // Instant Service Request: one customer request can be sent to multiple matching providers.
       if (path === "/api/service-requests" && request.method === "POST") {
         const account=await getAccount(request,env.DB);
-        if(!account || account.role!=="customer") return respond({error:"Please sign in with a customer account."},401);
+        if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Please sign in with a customer account."},401);
         const body=await request.json();
         const category=String(body.category||"").trim().slice(0,100);
         const location=String(body.service_location||"").trim().slice(0,300);        
@@ -826,7 +840,7 @@ export default {
       }
       if (path === "/api/customer/service-requests" && request.method === "GET") {
         const account=await getAccount(request,env.DB);
-        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account."},401);
         const rows=await env.DB.prepare("SELECT r.id,r.customer_name,r.customer_phone,r.service_location,r.service_date,r.details,r.status,r.created_at,c.name AS category_name,x.provider_id,p.business_name,x.status AS provider_status,x.quote,x.quote_note,x.response_at,CASE WHEN r.selected_provider_id=x.provider_id THEN 1 ELSE 0 END AS selected FROM service_requests r JOIN categories c ON c.id=r.category_id JOIN service_request_recipients x ON x.request_id=r.id JOIN providers p ON p.id=x.provider_id WHERE r.customer_account_id=? ORDER BY r.created_at DESC,x.created_at ASC LIMIT 300").bind(account.id).all();
         const grouped=new Map();
         for(const row of rows.results||[]){if(!grouped.has(row.id)){const {provider_id,business_name,provider_status,quote,quote_note,response_at,selected,...request}=row;grouped.set(row.id,{...request,providers:[]});}grouped.get(row.id).providers.push({provider_id:row.provider_id,business_name:row.business_name,status:row.provider_status,quote:row.quote,quote_note:row.quote_note,response_at:row.response_at,selected:!!row.selected});}
@@ -850,7 +864,7 @@ export default {
       }
       if (path === "/api/customer/service-request-select" && request.method === "POST") {
         const account=await getAccount(request,env.DB);
-        if(!account || account.role!=="customer") return respond({error:"Sign in with a customer account."},401);
+        if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Sign in with a customer account."},401);
         const body=await request.json(), id=Number.parseInt(body.request_id,10), providerId=Number.parseInt(body.provider_id,10);
         if(!Number.isInteger(id)||id<1||!Number.isInteger(providerId)||providerId<1) return respond({error:"Choose a valid provider response."},400);
         const chosen=await env.DB.prepare("SELECT id FROM service_request_recipients WHERE request_id=? AND provider_id=? AND status='interested'").bind(id,providerId).first();
@@ -862,7 +876,7 @@ export default {
 
       if (path === "/api/booking-requests" && request.method === "POST") {
         const account = await getAccount(request,env.DB);
-        if(!account || account.role!=="customer") return respond({error:"Create a customer account or sign in before requesting a service."},401);
+        if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Create a customer account or sign in before requesting a service."},401);
         const body=await request.json();
         const providerId=Number.parseInt(body.provider_id,10);
         const customerName=String(body.customer_name||account.display_name).trim().slice(0,100);
