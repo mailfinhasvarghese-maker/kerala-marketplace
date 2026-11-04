@@ -535,6 +535,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
       </div>
       <button class="btn primary search-submit" type="submit">Search <span aria-hidden="true">→</span></button>
     </form>
+    <div style="display:flex;justify-content:center;margin:14px 0 4px"><button type="button" class="btn primary" id="instantRequestBtn">✦ Send one request to nearby providers</button></div>
     <div class="search-caption"><span class="search-ai-mark" aria-hidden="true">✳</span><span>Smart search understands services and locations</span><span class="caption-divider">·</span><span>Try “plumber near me” or “taxi in Aluva”</span></div>
   </div>
 </section>
@@ -1438,13 +1439,21 @@ function openModal(type, p = null) {
   selected = p;
 
   $('modalTitle').textContent =
-    type === 'provider' ? 'List your service' : 'Request a booking';
+    type === 'provider' ? 'List your service' : type === 'instant' ? 'Request a service from multiple providers' : 'Request a booking';
 
   $('modalSubtitle').textContent = type === 'provider'
     ? 'Register your service for review.'
-    : 'Selected profile: ' + p.name + ' · ' + p.service;
+    : type === 'instant' ? 'Describe the job once. Matching providers in your selected area can respond with offers.' : 'Selected profile: ' + p.name + ' · ' + p.service;
 
-  const fields = type === 'provider'
+  const fields = type === 'instant'
+    ? [
+        ['Service category', 'service', 'select', ''],
+        ['Your mobile number', 'phone', 'tel', 'Your contact number'],
+        ['Town / area', 'location', 'text', 'Choose your service location'],
+        ['Preferred date', 'date', 'date', ''],
+        ['Describe the work', 'details', 'textarea', 'Explain what you need, including size or urgency']
+      ]
+    : type === 'provider'
     ? [
         ['Your name', 'name', 'text', 'e.g. Anil Kumar'],
         ['Business or service name', 'business', 'text', 'e.g. Anil Taxi Service'],
@@ -1489,7 +1498,7 @@ function openModal(type, p = null) {
         '</select>';
     } else if (x[1] === 'location' && type === 'provider') {
       html += '<div class="full" style="margin-top:2px"><button type="button" class="btn light" id="providerUseGps">Use this device\'s GPS location</button> <span class="map-note" id="providerGpsStatus">Optional, helps customers find nearby services.</span><input id="f_latitude" type="hidden"><input id="f_longitude" type="hidden"></div>';
-    } else if (x[1] === 'location' && type === 'booking') {
+    } else if (x[1] === 'location' && (type === 'booking' || type === 'instant')) {
       html += '<div style="position:relative"><input id="f_location" type="text" placeholder="Start typing a Kerala town or locality" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="bookingLocationSuggestions" required><div id="bookingLocationSuggestions" role="listbox" style="display:none;position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #183d2a18;max-height:220px;overflow:auto"></div><small class="map-note">Choose a suggested place so the service location is clear.</small></div><input id="f_latitude" type="hidden"><input id="f_longitude" type="hidden">';
     } else if (x[1] === 'details') {
       html += '<textarea id="' + id + '" rows="3" placeholder="' +
@@ -1507,7 +1516,7 @@ function openModal(type, p = null) {
     return html + '</div>';
   }).join('');
 
-  if(type==='booking') attachPlaceAutocomplete('f_location','bookingLocationSuggestions',(place)=>{
+  if(type==='booking' || type==='instant') attachPlaceAutocomplete('f_location','bookingLocationSuggestions',(place)=>{
     const a=place.address||{}, name=a.city||a.town||a.village||a.municipality||a.suburb||a.neighbourhood||a.hamlet||place.name||place.display_name.split(',')[0];
     $('f_location').value=place.display_name.split(',').slice(0,3).join(', ');
     $('f_latitude').value=place.lat||'';$('f_longitude').value=place.lon||'';
@@ -1515,7 +1524,7 @@ function openModal(type, p = null) {
   if(type==='provider'){$('providerUseGps').addEventListener('click',()=>{const b=$('providerUseGps');if(!navigator.geolocation){$('providerGpsStatus').textContent='GPS is not supported in this browser.';return;}b.disabled=true;$('providerGpsStatus').textContent='Waiting for location permission…';navigator.geolocation.getCurrentPosition(pos=>{$('f_latitude').value=pos.coords.latitude;$('f_longitude').value=pos.coords.longitude;$('providerGpsStatus').textContent='Location captured and ready to save.';b.disabled=false;},()=>{$('providerGpsStatus').textContent='GPS unavailable. Submit without it and use district/town search.';b.disabled=false;},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});});}
   $('submit').textContent = type === 'provider'
     ? 'Submit provider interest'
-    : 'Submit booking request';
+    : type === 'instant' ? 'Send service request' : 'Submit booking request';
 
   $('modalBg').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1763,6 +1772,8 @@ $('categoryCards').addEventListener('click', e => {
   $('providers').scrollIntoView({ behavior: 'smooth' });
 });
 
+$('instantRequestBtn')?.addEventListener('click',()=>openModal('instant'));
+
 document.querySelectorAll('[data-join]').forEach(b => {
   b.addEventListener('click', () => openModal('provider'));
 });
@@ -1790,9 +1801,10 @@ $('requestForm').addEventListener('submit', async e => {
 
   const submitButton = $('submit');
   const isProvider = mode === 'provider';
+  const isInstant = mode === 'instant';
   if (!isProvider && !authToken) { pendingProvider=selected; closeModal(); openAuth('login'); toast('Sign in before requesting a service.'); return; }
 
-  if (!isProvider && (!selected || !Number.isInteger(Number(selected.id)))) {
+  if (!isProvider && !isInstant && (!selected || !Number.isInteger(Number(selected.id)))) {
     toast('Please select an active provider first.');
     return;
   }
@@ -1815,7 +1827,13 @@ $('requestForm').addEventListener('submit', async e => {
         longitude: $('f_longitude').value,
         description: $('f_details').value.trim()
       }
-    : {
+    : isInstant ? {
+        category: $('f_service').value.trim(),
+        customer_phone: $('f_phone').value.trim(),
+        service_date: $('f_date').value.trim(),
+        service_location: $('f_location').value.trim(),
+        details: $('f_details').value.trim()
+      } : {
         provider_id: Number(selected.id),
         customer_name: $('f_name').value.trim(),
         customer_phone: $('f_phone').value.trim(),
@@ -1826,6 +1844,7 @@ $('requestForm').addEventListener('submit', async e => {
 
   const endpoint = isProvider
     ? 'https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider-register'
+    : isInstant ? 'https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/service-requests'
     : 'https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/booking-requests';
 
   try {
@@ -1847,6 +1866,7 @@ $('requestForm').addEventListener('submit', async e => {
 
     toast(isProvider
       ? 'Registration submitted successfully for review.'
+      : isInstant ? result.message || 'Your request has been sent to matching providers.'
       : 'Booking request submitted successfully.');
   } catch (error) {
     toast('Could not submit: ' + error.message);
@@ -1854,7 +1874,7 @@ $('requestForm').addEventListener('submit', async e => {
     submitButton.disabled = false;
     submitButton.textContent = isProvider
       ? 'Submit provider interest'
-      : 'Submit booking request';
+      : isInstant ? 'Send service request' : 'Submit booking request';
   }
 });
 
