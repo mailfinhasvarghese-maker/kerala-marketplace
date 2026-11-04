@@ -1396,6 +1396,7 @@ async function openAccount(){
       }
       return html+'</article>';
     }).join(''):'<p>No direct bookings yet.</p>';
+    if(currentAccount.role==='provider') $('accountContent').insertAdjacentHTML('afterbegin','<p><a class="btn primary" href="/provider-dashboard.html">Open provider dashboard</a></p>');
     if(true){
       const sr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/customer/service-requests',{headers:authHeaders()});
       const sd=await sr.json();if(!sr.ok)throw Error(sd.error||'Could not load service requests.');
@@ -1526,6 +1527,13 @@ function openModal(type, p = null) {
 
     return html + '</div>';
   }).join('');
+  if (type === 'provider' && authToken && currentAccount) {
+    const emailField = $('f_email');
+    const passwordField = $('f_password');
+    if (emailField) { emailField.value = currentAccount.email; emailField.readOnly = true; }
+    if (passwordField) { passwordField.required = false; passwordField.closest('.field').style.display = 'none'; }
+    $('modalSubtitle').textContent = 'Add a provider profile to your existing Nearestor account. Your customer login and bookings will remain unchanged.';
+  }
 
   if(type==='booking' || type==='instant') attachPlaceAutocomplete('f_location','bookingLocationSuggestions',(place)=>{
     const a=place.address||{}, name=a.city||a.town||a.village||a.municipality||a.suburb||a.neighbourhood||a.hamlet||place.name||place.display_name.split(',')[0];
@@ -1873,7 +1881,7 @@ $('requestForm').addEventListener('submit', async e => {
 
     $('requestForm').reset();
     closeModal();
-    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;updateAuthButtons();if(currentAccount&&currentAccount.role==='provider'){window.location.assign('/provider-dashboard.html');return;}}
+    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;updateAuthButtons();}
 
     toast(isProvider
       ? 'Registration submitted successfully for review.'
