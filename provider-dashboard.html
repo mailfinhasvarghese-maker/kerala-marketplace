@@ -69,13 +69,13 @@ let providerServiceCategories=[];
 async function loadServiceCategories(){
  const response=await fetch(API+'/api/categories');const data=await response.json();if(!response.ok)throw Error(data.error||'Could not load service categories.');
  providerServiceCategories=data.categories||[];const main=providerServiceCategories.filter(c=>!c.parent_id);
- $('pfCategory').innerHTML='<option value="">Choose main category</option>'+main.map(c=>'<option value="'+esc(c.slug)+'">'+esc(c.name)+'</option>').join('');
+ $('pfCategory').innerHTML='<option value="">Choose main category</option>'+main.map(c=>'<option value="'+esc(c.slug)+'">'+esc(document.documentElement.lang==='ml'?(c.name_ml||c.name):document.documentElement.lang==='hi'?(c.name_hi||c.name):c.name)+'</option>').join('');
  $('pfCategory').addEventListener('change',()=>populateProviderSubcategories());
 }
 function populateProviderSubcategories(selected=''){
  const main=providerServiceCategories.find(c=>!c.parent_id&&c.slug===$('pfCategory').value);
  const children=main?providerServiceCategories.filter(c=>Number(c.parent_id)===Number(main.id)):[];
- $('pfSubcategory').innerHTML='<option value="">Choose subcategory</option>'+children.map(c=>'<option value="'+esc(c.slug)+'">'+esc(c.name)+'</option>').join('');
+ $('pfSubcategory').innerHTML='<option value="">Choose subcategory</option>'+children.map(c=>'<option value="'+esc(c.slug)+'">'+esc(document.documentElement.lang==='ml'?(c.name_ml||c.name):document.documentElement.lang==='hi'?(c.name_hi||c.name):c.name)+'</option>').join('');
  $('pfSubcategory').disabled=!children.length;$('pfSubcategory').required=children.length>0;
  if(selected)$('pfSubcategory').value=selected;
  if(!children.length)$('pfSubcategory').innerHTML='<option value="">No subcategories available</option>';
