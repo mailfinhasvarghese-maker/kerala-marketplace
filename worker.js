@@ -29,7 +29,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
-  const additions = {categories:[["parent_id","INTEGER"]],providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
+  const additions = {providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
     const info = await db.prepare("PRAGMA table_info("+table+")").all();
     const names = new Set((info.results||[]).map(x=>x.name));
@@ -41,7 +41,7 @@ async function ensureSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT 'grid', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   const catInfo = await db.prepare("PRAGMA table_info(categories)").all();
   const catCols = new Set((catInfo.results || []).map(x => x.name));
-  for (const [n,t] of [["description","TEXT"],["name_ml","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
+  for (const [n,t] of [["description","TEXT"],["name_ml","TEXT"],["icon","TEXT DEFAULT 'grid'"],["active","INTEGER NOT NULL DEFAULT 1"],["sort_order","INTEGER NOT NULL DEFAULT 100"],["parent_id","INTEGER"]]) if (!catCols.has(n)) await db.prepare("ALTER TABLE categories ADD COLUMN "+n+" "+t).run();
 }
 async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
