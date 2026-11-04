@@ -2,7 +2,16 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#176b4d"><title>Nattukaar Super Admin — Providers & Categories</title>
 <style>
 :root{--g:#176b4d;--ink:#17231d;--muted:#6c7b72;--line:#e0e8e2;--bg:#f5f8f5;--red:#b42318}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,sans-serif}header{background:#fff;border-bottom:1px solid var(--line);padding:16px 22px}.wrap{max-width:1150px;margin:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{font-size:20px;font-weight:850}.muted{color:var(--muted);font-size:12px}.main{padding:22px}.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}.tab,button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:10px 13px;font-weight:700;cursor:pointer}.tab.active,.primary{background:var(--g);border-color:var(--g);color:#fff}.panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px;margin-bottom:18px}.hidden{display:none!important}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}label{font-size:12px;font-weight:750;color:#506057}input,select,textarea{width:100%;padding:10px 11px;border:1px solid #dce5de;border-radius:8px;font:inherit;background:#fff}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.item{border:1px solid var(--line);border-radius:11px;padding:13px;margin-top:10px}.itemhead{display:flex;justify-content:space-between;gap:10px;align-items:center}.status{font-size:12px;margin-top:10px}.success{color:var(--g)}.error{color:var(--red)}.danger{color:var(--red);border-color:#f0c6c3}.banner{padding:12px;background:#fff7e6;border:1px solid #f0dfb3;border-radius:10px;margin-bottom:12px}@media(max-width:650px){.main{padding:12px}.panel{padding:14px}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.top{align-items:flex-start}}
-</style></head><body>
+</style>
+<style id="nattukaar-brand-colours">
+/* Nattukaar brand palette: Navy, Teal and White */
+:root{--g:#173C69;--ink:#173C69;--muted:#64748B;--line:#DCE5EE;--bg:#F7FAFC}
+body{color:#173C69}
+button.primary,.btn-primary,.nav a.active,.tab.active{background:#173C69!important;color:#fff!important}
+a,.link,.accent{color:#20B486}
+
+</style>
+</head><body>
 <header><div class="wrap top"><div><div class="brand">Nattukaar Super Admin</div><div class="muted" id="who">Provider and category management</div></div><div class="actions" style="margin:0"><button id="home">Public site</button><button id="signout">Sign out</button></div></div></header>
 <main class="wrap main"><div id="message" class="banner hidden"></div><section id="denied" class="panel hidden"><h2>Super admin access required</h2><p class="muted">Sign in with the main super-admin account to manage every provider and service category.</p><button class="primary" id="goAdmin">Open admin dashboard</button></section>
 <div id="app" class="hidden"><div class="tabs"><button class="tab active" data-tab="categories">Service categories</button><button class="tab" data-tab="providers">All providers</button></div>
