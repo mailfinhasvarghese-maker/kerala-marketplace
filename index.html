@@ -440,6 +440,14 @@ h1 em{font-style:normal;color:var(--g)}
   }
 }
 
+
+/* Voice search control */
+.header-search .voice-search-toggle{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border:0;border-radius:10px;background:transparent;color:var(--primary,#173c69);cursor:pointer}
+.header-search .voice-search-toggle:hover{background:#20b48618}
+.header-search .voice-search-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.header-search .voice-search-toggle[aria-pressed="true"]{background:#20b486;color:#fff;animation:nearestorVoicePulse 1.2s ease-in-out infinite}
+@keyframes nearestorVoicePulse{50%{box-shadow:0 0 0 6px #20b48630}}
+.header-search .voice-search-toggle:disabled{opacity:.55;cursor:not-allowed}
 </style>
 
 <style id="nattukaar-brand-colours">
@@ -480,7 +488,8 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
     <div class="header-search-wrap">
       <form class="header-search" id="headerSearchForm" role="search" aria-label="Search services">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 5 5"></path></svg>
-        <input id="headerSearchInput" type="search" placeholder="Search services, providers or locations..." aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions">
+        <input id="headerSearchInput" type="search" placeholder="Try “plumber near me” or “taxi in Aluva”..." aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions">
+        <button class="voice-search-toggle" id="voiceSearchToggle" type="button" aria-label="Search by voice" title="Search by voice" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg></button>
         <button class="advanced-search-toggle" id="advancedSearchToggle" type="button" aria-label="Advanced search" title="Advanced search" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg></button>
       </form>
       <div id="headerSearchSuggestions" role="listbox" class="header-search-suggestions"></div>
@@ -521,12 +530,12 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
       </div>
       <div class="field search-keyword-field" style="position:relative">
         <label for="keyword">What are you looking for?</label>
-        <input id="keyword" type="search" placeholder="Start typing a service..." autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="serviceSuggestions">
+        <input id="keyword" type="search" placeholder="Describe what you need, e.g. plumber near me" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="serviceSuggestions">
         <div id="serviceSuggestions" role="listbox" style="display:none;position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #183d2a18;max-height:240px;overflow:auto"></div>
       </div>
       <button class="btn primary search-submit" type="submit">Search <span aria-hidden="true">→</span></button>
     </form>
-    <div class="search-caption"><span class="search-ai-mark" aria-hidden="true">✳</span><span>AI-powered discovery</span><span class="caption-divider">·</span><span>Find services across Kerala</span></div>
+    <div class="search-caption"><span class="search-ai-mark" aria-hidden="true">✳</span><span>Smart search understands services and locations</span><span class="caption-divider">·</span><span>Try “plumber near me” or “taxi in Aluva”</span></div>
   </div>
 </section>
 
@@ -1100,6 +1109,43 @@ function esc(s) {
   }[c]));
 }
 
+
+/* Smart Nearby Search: interpret common local-service phrases without an external AI dependency. */
+function applySmartNearbySearch(raw){
+ const original=String(raw||"").trim(), q=original.toLowerCase();
+ if(!q)return;
+ const nearby=/\b(near me|nearby|closest|nearest|around me|near my location)\b/.test(q);
+ let cleaned=q.replace(/\b(near me|nearby|closest|nearest|around me|near my location)\b/g," ").replace(/\s+/g," ").trim();
+ const placeMatch=cleaned.match(/\b(?:in|at|around|near)\s+([a-z][a-z .'-]{1,45})$/i);
+ let place="";
+ if(placeMatch){
+   const candidate=placeMatch[1].trim();
+   const found=data.find(p=>[p.town,p.location].some(v=>String(v||"").toLowerCase()===candidate||String(v||"").toLowerCase().includes(candidate)));
+   if(found){place=String(found.town||found.location||"");cleaned=cleaned.slice(0,placeMatch.index).trim();}
+ }
+ const intents=[
+  {pattern:/\b(taxi|cab|cabs|taxi service|airport transfer|car with driver)\b/,category:"Taxi"},
+  {pattern:/\b(rentals?|rental service|equipment hire|tool hire)\b/,category:"Rentals"},
+  {pattern:/\b(worker|workers|labou?r|helper|helpers|manpower|daily wage)\b/,category:"Workers"},
+  {pattern:/\b(plumb(er|ing)|electrician|electrical repair|carpenter|carpentry|clean(er|ing)|ac repair|air conditioner repair|appliance repair|home service)\b/,category:"Home services"}
+ ];
+ const intent=intents.find(x=>x.pattern.test(cleaned));
+ $("catFilter").value=intent?intent.category:"all";
+ $("locFilter").value=place||"all";
+ homePlaceSelected=!!place;
+ $("keyword").value=intent?(intent.category==="Home services"?cleaned:""):cleaned;
+ localSearchActive=nearby;
+ if(place)showLocationGreeting(place);
+ if(nearby){
+   if(navigator.geolocation){requestCustomerLocation();}
+   else{localSearchActive=false;toast("Location is unavailable. Choose a town or district instead.");}
+ }else{
+   if(customerLocation&&mapReady){data.forEach(p=>{p.distanceKm=Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?distanceKm(customerLocation,{lat:p.latitude,lng:p.longitude}):null;});}
+   render();renderMap();
+ }
+ document.querySelector("#providers")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 function render() {
   const c = $('catFilter').value;
   const l = $('locFilter').value;
@@ -1530,7 +1576,38 @@ if(searchLocallyBtn)searchLocallyBtn.addEventListener('click',function(){
 const headerSearchForm=$('headerSearchForm'),headerSearchInput=$('headerSearchInput'),headerSearchSuggestions=$('headerSearchSuggestions');
 const advancedSearchToggle=$('advancedSearchToggle'),advancedSearchPanel=$('advancedSearchPanel');
 function closeHeaderSearchSuggestions(){if(headerSearchSuggestions){headerSearchSuggestions.classList.remove('open');headerSearchSuggestions.innerHTML='';}if(headerSearchInput)headerSearchInput.setAttribute('aria-expanded','false');}
-function runHeaderSearch(value){const q=String(value||'').trim();$('keyword').value=q;$('locFilter').value='all';homePlaceSelected=false;localSearchActive=false;render();renderMap();closeHeaderSearchSuggestions();document.querySelector('#providers')?.scrollIntoView({behavior:'smooth',block:'start'});}
+
+const voiceSearchButton=$('voiceSearchToggle');
+let voiceRecognition=null;
+function stopVoiceSearch(){
+ if(voiceRecognition){try{voiceRecognition.stop();}catch(e){}}
+ if(voiceSearchButton){voiceSearchButton.setAttribute('aria-pressed','false');voiceSearchButton.disabled=false;voiceSearchButton.title='Search by voice';voiceSearchButton.setAttribute('aria-label','Search by voice');}
+}
+function startVoiceSearch(){
+ const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SpeechRecognition){toast('Voice search is not supported in this browser. Please use Chrome or type your search.');return;}
+ if(voiceRecognition){stopVoiceSearch();return;}
+ const recognition=new SpeechRecognition();voiceRecognition=recognition;
+ recognition.lang=currentLanguage==='ml'?'ml-IN':currentLanguage==='hi'?'hi-IN':'en-IN';
+ recognition.interimResults=false;recognition.maxAlternatives=1;
+ recognition.onstart=()=>{voiceSearchButton.setAttribute('aria-pressed','true');voiceSearchButton.title='Listening… tap to stop';voiceSearchButton.setAttribute('aria-label','Listening, tap to stop');};
+ recognition.onresult=event=>{
+  const transcript=event.results&&event.results[0]&&event.results[0][0]?event.results[0][0].transcript.trim():'';
+  if(!transcript){toast('No speech detected. Please try again.');return;}
+  if(headerSearchInput){headerSearchInput.value=transcript;runHeaderSearch(transcript);}
+  else{$('keyword').value=transcript;applySmartNearbySearch(transcript);}
+  toast('Searching for: '+transcript);
+ };
+ recognition.onerror=event=>{
+  const messages={not-allowed:'Microphone permission was denied. Allow microphone access in your browser.','no-speech':'No speech detected. Please try again.','audio-capture':'No microphone was found.'};
+  toast(messages[event.error]||'Voice search could not start. You can type your search instead.');
+ };
+ recognition.onend=()=>{voiceRecognition=null;stopVoiceSearch();};
+ try{recognition.start();}catch(error){voiceRecognition=null;stopVoiceSearch();toast('Could not start voice search. Please try again.');}
+}
+if(voiceSearchButton)voiceSearchButton.addEventListener('click',startVoiceSearch);
+
+function runHeaderSearch(value){const q=String(value||'').trim();if(q)applySmartNearbySearch(q);closeHeaderSearchSuggestions();}
 function chooseHeaderSuggestion(item){headerSearchInput.value=item.value;if(item.kind==='location'){$('locFilter').value=item.value;$('keyword').value='';showLocationGreeting(item.value);}else if(item.kind==='category'){$('catFilter').value=item.value;$('keyword').value='';}else{$('keyword').value=item.value;}closeHeaderSearchSuggestions();render();renderMap();document.querySelector('#providers')?.scrollIntoView({behavior:'smooth',block:'start'});}
 if(headerSearchForm&&headerSearchInput){
  headerSearchForm.addEventListener('submit',function(e){e.preventDefault();runHeaderSearch(headerSearchInput.value);});
@@ -1573,8 +1650,8 @@ $('signOut').addEventListener('click',async function(){try{await fetch('https://
 // Removed obsolete listener for the deleted duplicate header search form.
 $('searchForm').addEventListener('submit', e => {
   e.preventDefault();
-  render();
-  $('providers').scrollIntoView({ behavior: 'smooth' });
+  const q=$('keyword').value.trim();
+  if(q)applySmartNearbySearch(q);else{render();$('providers').scrollIntoView({behavior:'smooth'});}
 });
 
 $('clear').addEventListener('click', () => {
