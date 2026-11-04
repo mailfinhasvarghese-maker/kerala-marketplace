@@ -192,8 +192,8 @@ export default {
         const aliases = {"taxi":"taxi-transportation","rentals":"item-equipment-rentals","workers":"labour-skilled-workers","home services":"home-business-services"};
         const categoryValue = aliases[category.toLowerCase()] || category;
         if (categoryValue) {
-          const row = await env.DB.prepare("SELECT id FROM categories WHERE LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?) LIMIT 1").bind(categoryValue,categoryValue).first();
-          if (row) categoryId = row.id;
+          const row = await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND LOWER(slug)=LOWER(?) OR active=1 AND LOWER(name)=LOWER(?) LIMIT 1").bind(categoryValue,categoryValue).first();
+          if (row && !row.parent_id) categoryId = row.id;
         }
         const subValue=String(body.subcategory||"").trim();if(subValue){const sub=await env.DB.prepare("SELECT id,parent_id FROM categories WHERE active=1 AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(subValue,subValue).first();if(!sub||!categoryId||Number(sub.parent_id)!==Number(categoryId))return respond({error:"Choose a subcategory that belongs to the selected main category."},400);subcategoryId=sub.id;}
         const current = await env.DB.prepare("SELECT status FROM providers WHERE id=?").bind(account.provider_id).first();
@@ -603,15 +603,15 @@ export default {
 
         if (categoryValue) {
           const categorySql =
-            "SELECT id FROM categories " +
-            "WHERE LOWER(slug) = LOWER(?) " +
-            "OR LOWER(name) = LOWER(?) LIMIT 1";
+            "SELECT id,parent_id FROM categories " +
+            "WHERE active=1 AND (LOWER(slug) = LOWER(?) " +
+            "OR LOWER(name) = LOWER(?)) LIMIT 1";
 
           const categoryRow = await env.DB.prepare(categorySql)
             .bind(categoryValue, categoryValue)
             .first();
 
-          if (categoryRow) {
+          if (categoryRow && !categoryRow.parent_id) {
             categoryId = categoryRow.id;
           }
         }
