@@ -19,7 +19,7 @@ a,.link,.accent{color:#20B486}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap nav"><a class="brand" href="/">Nattukaar<small>KERALA LOCAL MARKETPLACE</small></a><div class="nav-actions"><button id="refreshBtn" class="btn soft">↻ Refresh all</button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
+<header class="top"><div class="wrap nav"><a class="brand" href="/">Nattukaar<small>KERALA LOCAL MARKETPLACE</small></a><div class="nav-actions"><a class="btn outline" href="/">Use Nearestor as customer</a><button id="refreshBtn" class="btn soft">↻ Refresh all</button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
 <main class="wrap main">
 <section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section>
 <div id="pageError" hidden class="error"></div>
@@ -39,7 +39,7 @@ a,.link,.accent{color:#20B486}
   <p class="muted" id="photoUploadStatus" aria-live="polite"></p>
 </div>
 </section>
-<section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account type</label><p>Provider</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div></section>
+<section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account access</label><p>Customer and provider access use this same login.</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div></section>
 </div></div></main><footer><div class="wrap">Nattukaar · Kerala Local Marketplace</div></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
