@@ -808,7 +808,8 @@ export default {
         if(!account || account.role!=="customer") return respond({error:"Please sign in with a customer account."},401);
         const body=await request.json();
         const category=String(body.category||"").trim().slice(0,100);
-        const location=String(body.service_location||"").trim().slice(0,300);\n        const locationKey=location.split(",")[0].trim();
+        const location=String(body.service_location||"").trim().slice(0,300);        
+        const locationKey=location.split(",")[0].trim();
         const details=String(body.details||"").trim().slice(0,2000);
         const phone=String(body.customer_phone||"").trim().slice(0,60);
         const date=String(body.service_date||"").trim().slice(0,40);
