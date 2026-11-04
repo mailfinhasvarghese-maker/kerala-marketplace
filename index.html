@@ -1692,6 +1692,55 @@ if(headerSearchForm&&headerSearchInput){
  headerSearchInput.addEventListener('keydown',e=>{if(e.key==='Escape')closeHeaderSearchSuggestions();if(e.key==='ArrowDown'){const first=headerSearchSuggestions.querySelector('button');if(first){e.preventDefault();first.focus();}}});
  document.addEventListener('click',e=>{if(!e.target.closest('.header-search-wrap'))closeHeaderSearchSuggestions();});
 }
+
+// Smart place suggestions in the main search: resolve approximate spellings to recognised Kerala locations.
+let headerPlaceTimer=null,headerPlaceController=null;
+if(headerSearchInput&&headerSearchSuggestions){
+ headerSearchInput.addEventListener('input',()=>{
+  clearTimeout(headerPlaceTimer);
+  if(headerPlaceController)headerPlaceController.abort();
+  const raw=headerSearchInput.value.trim();
+  const match=raw.match(/\\b(?:in|at|near|around)\\s+([a-z][a-z .'-]{1,45})$/i);
+  if(!match||match[1].trim().length<3)return;
+  const typedPlace=match[1].trim();
+  headerPlaceTimer=setTimeout(async()=>{
+   headerPlaceController=new AbortController();
+   try{
+    const url='https://photon.komoot.io/api/?q='+encodeURIComponent(typedPlace+' Kerala India')+'&limit=7&lang=en';
+    const response=await fetch(url,{signal:headerPlaceController.signal,headers:{'Accept':'application/json'}});
+    if(!response.ok)return;
+    const result=await response.json();
+    const places=(result.features||[]).filter(f=>{
+     const p=f.properties||{};
+     return /kerala/i.test([p.state,p.county,p.name,p.city].filter(Boolean).join(' '))&&/india/i.test(p.country||'India');
+    });
+    if(!places.length)return;
+    const heading=document.createElement('div');
+    heading.style.cssText='padding:8px 14px 4px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em';
+    heading.textContent='Suggested places';
+    headerSearchSuggestions.appendChild(heading);
+    const seen=new Set();
+    places.forEach(feature=>{
+     const p=feature.properties||{};
+     const name=p.city||p.town||p.village||p.name||p.locality;
+     if(!name||seen.has(name.toLowerCase()))return;
+     seen.add(name.toLowerCase());
+     const detail=[p.district||p.county,p.state||'Kerala'].filter(Boolean).join(', ');
+     const button=document.createElement('button');button.type='button';button.setAttribute('role','option');
+     button.innerHTML='<strong>'+esc(name)+'</strong><small>Did you mean this place? · '+esc(detail)+'</small>';
+     button.addEventListener('click',()=>{
+      const corrected=raw.slice(0,match.index)+match[0].slice(0,match[0].length-match[1].length)+name;
+      headerSearchInput.value=corrected;
+      runHeaderSearch(corrected);
+     });
+     headerSearchSuggestions.appendChild(button);
+    });
+    headerSearchSuggestions.classList.add('open');headerSearchInput.setAttribute('aria-expanded','true');
+   }catch(error){if(error.name!=='AbortError'){}}
+  },650);
+ });
+}
+
 if(advancedSearchToggle&&advancedSearchPanel){advancedSearchToggle.addEventListener('click',()=>{const opening=advancedSearchPanel.hidden;advancedSearchPanel.hidden=!opening;advancedSearchToggle.setAttribute('aria-expanded',String(opening));if(opening)advancedSearchPanel.scrollIntoView({behavior:'smooth',block:'nearest'});});}
 $('authOpen').addEventListener('click',function(){currentAccount?openAccount():openAuth('login');});
 const accountOpenButton=$('accountOpen'); if(accountOpenButton)accountOpenButton.addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();if(currentAccount&&currentAccount.role==='provider'){location.href='/provider-dashboard.html';return;}openAccount();});
