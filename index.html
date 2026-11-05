@@ -456,8 +456,8 @@ h1 em{font-style:normal;color:var(--g)}
  .category-heading strong{flex:1;min-width:0;}
  .category-mobile-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;height:34px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--g);font-size:20px;line-height:1;transition:transform .22s ease,background .22s ease;}
  .category-mobile-toggle[aria-expanded="true"]{background:var(--mint);transform:rotate(180deg);}
- .category-subcategory-list{display:flex!important;flex-wrap:wrap;gap:6px;max-height:0;opacity:0;overflow:hidden;margin-top:0!important;transition:max-height .28s ease,opacity .2s ease,margin-top .28s ease;}
- .category.is-expanded .category-subcategory-list{max-height:500px;opacity:1;margin-top:9px!important;}
+ .category-subcategory-list{display:flex!important;flex-wrap:wrap;gap:6px;max-height:0;opacity:0;overflow:hidden;margin-top:0!important;visibility:hidden;transition:max-height .28s ease,opacity .2s ease,margin-top .28s ease,visibility 0s linear .28s;}
+ .category.is-expanded .category-subcategory-list{max-height:500px;opacity:1;margin-top:9px!important;visibility:visible;transition:max-height .28s ease,opacity .2s ease,margin-top .28s ease,visibility 0s;}
 }
 @media(min-width:641px){.category-mobile-toggle{display:none!important;}}
 </style>
@@ -1018,14 +1018,14 @@ const $ = id => document.getElementById(id);
    heading.append(icon,title);
    const children=serviceCategories.filter(x=>Number(x.parent_id)===Number(c.id));
    if(children.length){
-    const toggle=document.createElement("button");toggle.type="button";toggle.className="category-mobile-toggle";toggle.setAttribute("aria-label",ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories");toggle.setAttribute("aria-expanded","false");toggle.textContent="⌄";
+    const toggle=document.createElement("button");toggle.type="button";toggle.className="category-mobile-toggle";toggle.setAttribute("aria-label",ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories");toggle.setAttribute("aria-expanded","false");toggle.setAttribute("aria-controls","subcat-"+c.id);toggle.textContent="⌄";
     toggle.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const expanded=wrap.classList.toggle("is-expanded");toggle.setAttribute("aria-expanded",String(expanded));toggle.setAttribute("aria-label",expanded?(ml?"കീഴ്വിഭാഗങ്ങൾ മറയ്ക്കുക":hi?"उपश्रेणियाँ छिपाएँ":"Hide subcategories"):(ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories"));});
     heading.appendChild(toggle);
    }
    const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");
    wrap.append(heading,desc);
    if(children.length){
-    const list=document.createElement("div");list.className="category-subcategory-list";list.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px";
+    const list=document.createElement("div");list.className="category-subcategory-list";list.id="subcat-"+c.id;list.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px";
     children.forEach(child=>{const chip=document.createElement("button");chip.type="button";chip.className="btn outline";chip.style.cssText="font-size:11px;padding:5px 8px";chip.textContent=name(child);chip.addEventListener("click",e=>{e.stopPropagation();filter.value=c.name;$("keyword").value=name(child);render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});});list.appendChild(chip);});
     wrap.appendChild(list);
    }

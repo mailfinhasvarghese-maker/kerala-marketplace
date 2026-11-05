@@ -20,7 +20,18 @@ async function derivePassword(password, salt) {
   const bits = await crypto.subtle.deriveBits({name:"PBKDF2",salt:encoder.encode(salt),iterations:100000,hash:"SHA-256"},key,256);
   return tokenText(new Uint8Array(bits));
 }
-async function ensureSchema(db) {
+let schemaReady = null;
+function ensureSchema(db) {
+  // Run the schema check once per Worker instance instead of on every request.
+  if (!schemaReady) schemaReady = runSchema(db).catch(err => { schemaReady = null; throw err; });
+  return schemaReady;
+}
+async function runSchema(db) {
+  // Base tables (no-ops on your existing database) so a fresh environment can start.
+  await db.prepare("CREATE TABLE IF NOT EXISTS providers (id INTEGER PRIMARY KEY AUTOINCREMENT, business_name TEXT NOT NULL, contact_name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT, district TEXT NOT NULL, town TEXT, address TEXT, description TEXT, years_experience INTEGER NOT NULL DEFAULT 0, category_id INTEGER, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS booking_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT NOT NULL, customer_email TEXT, service_date TEXT, service_location TEXT NOT NULL, details TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS customer_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, reviewer_name TEXT NOT NULL, rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), review_text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (provider_id) REFERENCES providers(id))").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS service_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_account_id INTEGER NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT NOT NULL, category_id INTEGER, service_location TEXT NOT NULL, service_date TEXT, details TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', selected_provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(customer_account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS service_request_recipients (id INTEGER PRIMARY KEY AUTOINCREMENT, request_id INTEGER NOT NULL, provider_id INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', quote REAL, quote_note TEXT, response_at TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(request_id,provider_id), FOREIGN KEY(request_id) REFERENCES service_requests(id), FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_service_requests_customer ON service_requests(customer_account_id,created_at)").run();
@@ -36,6 +47,10 @@ async function ensureSchema(db) {
     for (const [name,type] of columns) if (!names.has(name)) await db.prepare("ALTER TABLE "+table+" ADD COLUMN "+name+" "+type).run();
   }
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_booking_unique ON customer_reviews(booking_request_id) WHERE booking_request_id IS NOT NULL").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_customer_reviews_provider_status ON customer_reviews(provider_id, status)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_providers_status_category ON providers(status, category_id)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_booking_requests_provider ON booking_requests(provider_id, created_at)").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_booking_requests_customer ON booking_requests(customer_account_id, created_at)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS job_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, permissions_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS staff_access (account_id INTEGER PRIMARY KEY, job_role_id INTEGER, is_main_admin INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id), FOREIGN KEY(job_role_id) REFERENCES job_roles(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, slug TEXT NOT NULL UNIQUE COLLATE NOCASE, description TEXT, icon TEXT DEFAULT 'grid', active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 100, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
@@ -52,7 +67,24 @@ async function getAccount(request, db) {
 async function issueSession(accountId, db) {
   const token = randomToken();
   await db.prepare("INSERT INTO user_sessions (account_id,token_hash,expires_at) VALUES (?,?,datetime('now','+14 days'))").bind(accountId,await hashText(token)).run();
+  if (Math.random() < 0.02) { try { await purgeExpired(db); } catch (e) {} }
   return token;
+}
+async function purgeExpired(db) {
+  await db.prepare("DELETE FROM user_sessions WHERE expires_at<=datetime('now')").run();
+  await db.prepare("DELETE FROM rate_limits WHERE window_start<?").bind(Math.floor(Date.now()/1000)-86400).run();
+}
+// Simple fixed-window limiter backed by D1. Returns true when the caller should be blocked.
+async function rateLimited(db, key, limit, windowSeconds) {
+  const now = Math.floor(Date.now() / 1000);
+  const row = await db.prepare("SELECT window_start,count FROM rate_limits WHERE key=?").bind(key).first();
+  if (!row || now - Number(row.window_start) >= windowSeconds) {
+    await db.prepare("INSERT INTO rate_limits (key,window_start,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET window_start=excluded.window_start,count=1").bind(key, now).run();
+    return false;
+  }
+  if (Number(row.count) >= limit) return true;
+  await db.prepare("UPDATE rate_limits SET count=count+1 WHERE key=?").bind(key).run();
+  return false;
 }
 
 export default {
@@ -61,7 +93,8 @@ export default {
     const path = url.pathname;
 
     const origin = request.headers.get("Origin");
-    const allowedOrigin = "https://kerala-marketplace.pages.dev";
+    const allowedOrigins = new Set(["https://kerala-marketplace.pages.dev", ...String(env.ALLOWED_ORIGINS || "").split(",").map(x => x.trim()).filter(Boolean)]);
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
 
     const headers = {
       "Content-Type": "application/json; charset=utf-8",
@@ -69,8 +102,8 @@ export default {
       "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Vary": "Origin",
-      ...(origin === allowedOrigin
-        ? { "Access-Control-Allow-Origin": allowedOrigin }
+      ...(origin && allowedOrigins.has(origin)
+        ? { "Access-Control-Allow-Origin": origin }
         : {})
     };
 
@@ -122,6 +155,7 @@ export default {
       }
 
       if (path === "/api/auth/register" && request.method === "POST") {
+        if (await rateLimited(env.DB, "register:" + ip, 10, 3600)) return respond({error:"Too many sign-up attempts. Please try again later."},429);
         const body = await request.json();
         const email = String(body.email || "").trim().toLowerCase();
         const displayName = String(body.display_name || "").trim().slice(0,100);
@@ -135,11 +169,14 @@ export default {
         return respond({ok:true,token,account:{id:result.meta.last_row_id,email,display_name:displayName,role:"customer"}},201);
       }
       if (path === "/api/auth/login" && request.method === "POST") {
+        if (await rateLimited(env.DB, "login-ip:" + ip, 40, 900)) return respond({error:"Too many sign-in attempts. Please try again in a few minutes."},429);
         const body = await request.json();
         const email = String(body.email||"").trim().toLowerCase();
         const password = String(body.password||"");
+        if (await rateLimited(env.DB, "login:" + ip + ":" + email, 8, 900)) return respond({error:"Too many sign-in attempts. Please try again in a few minutes."},429);
         const account = await env.DB.prepare("SELECT a.id,a.email,a.display_name,a.password_salt,a.password_hash,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_accounts a LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE a.email=?").bind(email).first();
-        if (!account || await derivePassword(password,account.password_salt) !== account.password_hash) return respond({error:"Email or password is incorrect."},401);
+        const loginDigest = await derivePassword(password, account ? account.password_salt : "no-such-account-salt");
+        if (!account || loginDigest !== account.password_hash) return respond({error:"Email or password is incorrect."},401);
         const token = await issueSession(account.id,env.DB);
         return respond({ok:true,token,account:{id:account.id,email:account.email,display_name:account.display_name,role:account.role,provider_id:account.provider_id,job_role_id:account.job_role_id||null,job_title:account.job_title||null,permissions_json:account.permissions_json||"[]",is_main_admin:Number(account.is_main_admin||0)===1}});
       }
@@ -363,6 +400,7 @@ export default {
       const canManageStaff = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("manage_staff"));
       const canReviewProviders = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("review_providers"));
       const canViewBookings = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("view_bookings"));
+      const canModerateReviews = isMainAdmin || (!!sessionAccount && sessionAccount.role==="staff" && sessionPermissions.includes("moderate_reviews"));
       if (path === "/api/admin/bookings" && request.method === "GET") {
         if(!canViewBookings)return respond({error:"You do not have permission to view booking reports."},403);
         const result=await env.DB.prepare("SELECT b.id,b.provider_id,b.customer_account_id,b.customer_name,b.customer_phone,b.customer_email,b.service_date,b.service_location,b.details,b.status,b.created_at,b.provider_quote,b.provider_quote_note,b.customer_counter_offer,b.customer_counter_note,p.business_name,p.contact_name AS provider_contact,p.phone AS provider_phone,p.email AS provider_email,p.town AS provider_town,p.district AS provider_district,c.name AS category_name,a.display_name AS account_name FROM booking_requests b LEFT JOIN providers p ON p.id=b.provider_id LEFT JOIN categories c ON c.id=p.category_id LEFT JOIN user_accounts a ON a.id=b.customer_account_id ORDER BY b.created_at DESC LIMIT 1000").all();
@@ -405,13 +443,19 @@ export default {
           const ids=providers.map(p=>p.id), placeholders=ids.map(()=>"?").join(",");
           const images=await env.DB.prepare("SELECT id,provider_id,object_key,content_type,created_at FROM provider_images WHERE provider_id IN ("+placeholders+") ORDER BY id").bind(...ids).all();
           const grouped=new Map();
-          for(const image of (images.results||[])){
-            if(!grouped.has(image.provider_id))grouped.set(image.provider_id,[]);
-            const object=await env.IMAGES?.get(image.object_key);
-            let dataUrl=null;
-            if(object){const bytes=new Uint8Array(await object.arrayBuffer());let binary="";for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);dataUrl="data:"+(image.content_type||"image/jpeg")+";base64,"+btoa(binary);}
-            grouped.get(image.provider_id).push({id:image.id,url:"/api/provider-image?id="+image.id,data_url:dataUrl,created_at:image.created_at,available:!!object});
-          }
+          const statusById=new Map(providers.map(p=>[p.id,String(p.status||"").toLowerCase()]));
+          // Photos of active providers are public, so the page loads those by URL.
+          // Only photos awaiting review (or rejected) are embedded, fetched in parallel.
+          const rows=await Promise.all((images.results||[]).map(async image=>{
+            let dataUrl=null,available=true;
+            if(statusById.get(image.provider_id)!=="active"){
+              const object=await env.IMAGES?.get(image.object_key);
+              available=!!object;
+              if(object){const bytes=new Uint8Array(await object.arrayBuffer());let binary="";for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);dataUrl="data:"+(image.content_type||"image/jpeg")+";base64,"+btoa(binary);}
+            }
+            return {providerId:image.provider_id,item:{id:image.id,url:"/api/provider-image?id="+image.id,data_url:dataUrl,created_at:image.created_at,available}};
+          }));
+          for(const r of rows){if(!grouped.has(r.providerId))grouped.set(r.providerId,[]);grouped.get(r.providerId).push(r.item);}
           for(const provider of providers)provider.images=grouped.get(provider.id)||[];
         }else{}
         return respond({providers});
@@ -503,21 +547,13 @@ export default {
 
         if (search) {
           conditions.push(
-            "(p.business_name LIKE ? OR p.description LIKE ? OR p.town LIKE ? OR p.district LIKE ?)"
+            "(p.business_name LIKE ? ESCAPE '!' OR p.description LIKE ? ESCAPE '!' OR p.town LIKE ? ESCAPE '!' OR p.district LIKE ? ESCAPE '!')"
           );
 
-          const term = "%" + search + "%";
+          const term = "%" + search.slice(0,100).replace(/[!%_]/g, "!$&") + "%";
           values.push(term, term, term, term);
         }
 
-        await env.DB.prepare(
-          "CREATE TABLE IF NOT EXISTS customer_reviews (" +
-          "id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, " +
-          "reviewer_name TEXT NOT NULL, rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), " +
-          "review_text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', " +
-          "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-          "FOREIGN KEY (provider_id) REFERENCES providers(id))"
-        ).run();
 
         const sql =
           "SELECT " +
@@ -562,9 +598,10 @@ export default {
         path === "/api/provider-register" &&
         request.method === "POST"
       ) {
+        if (await rateLimited(env.DB, "provider-register:" + ip, 10, 3600)) return respond({error:"Too many registration attempts. Please try again later."},429);
         const body = await request.json();
 
-        const accountEmail = String(body.email || "").trim().toLowerCase();
+        const accountEmail = String(body.email || "").trim().toLowerCase().slice(0,200);
         const accountPassword = String(body.password || "");
         const signedInAccount = await getAccount(request, env.DB);
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
@@ -578,10 +615,10 @@ export default {
           if (accountPassword.length < 10 || accountPassword.length > 200) return respond({error:"A password of at least 10 characters is required for a new provider account."},400);
           if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email = ?").bind(accountEmail).first()) return respond({error:"An account with this email already exists. Sign in first, then add your provider profile."},409);
         }
-        const businessName = String(body.business_name || "").trim();
-        const contactName = String(body.contact_name || "").trim();
-        const phone = String(body.phone || "").trim();
-        const district = String(body.district || "").trim();
+        const businessName = String(body.business_name || "").trim().slice(0,160);
+        const contactName = String(body.contact_name || "").trim().slice(0,100);
+        const phone = String(body.phone || "").trim().slice(0,60);
+        const district = String(body.district || "").trim().slice(0,100);
 
         if (!businessName || !contactName || !phone || !district) {
           return respond({
@@ -628,11 +665,11 @@ export default {
             businessName,
             contactName,
             phone,
-            String(body.email || "").trim() || null,
+            accountEmail || null,
             district,
-            String(body.town || "").trim() || null,
-            String(body.address || "").trim() || null,
-            String(body.description || "").trim() || null,
+            String(body.town || "").trim().slice(0,120) || null,
+            String(body.address || "").trim().slice(0,300) || null,
+            String(body.description || "").trim().slice(0,2000) || null,
             Math.max(
               0,
               Number.parseInt(body.years_experience, 10) || 0
@@ -665,29 +702,6 @@ export default {
           token,
           account: {id:accountId,email:accountEmail,display_name:signedInAccount?.display_name||contactName,role:"provider",provider_id:providerId}
         }, 201);
-      }
-
-      // Protected admin: list pending provider registrations
-      if (
-        path === "/api/admin/providers" &&
-        request.method === "GET"
-      ) {
-        if (!env.ADMIN_API_KEY) {
-          return respond({ error: "Admin authentication is not configured." }, 503);
-        }
-        if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
-          return respond({ error: "Unauthorized." }, 401);
-        }
-
-        const result = await env.DB.prepare(
-          "SELECT p.id, p.business_name, p.contact_name, p.phone, p.email, " +
-          "p.district, p.town, p.address, p.description, p.years_experience, " +
-          "p.created_at, c.name AS category_name, c.slug AS category_slug " +
-          "FROM providers p LEFT JOIN categories c ON c.id = p.category_id " +
-          "WHERE p.status = 'pending' ORDER BY p.created_at ASC LIMIT 200"
-        ).all();
-
-        return respond({ providers: result.results || [] });
       }
 
       // Protected admin: activate or reject a pending provider
@@ -733,19 +747,6 @@ export default {
         (path === "/api/admin/reviews" && request.method === "GET") ||
         (path === "/api/admin/review-status" && request.method === "POST")
       ) {
-        await env.DB.prepare(
-          "CREATE TABLE IF NOT EXISTS customer_reviews (" +
-          "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-          "provider_id INTEGER NOT NULL, reviewer_name TEXT NOT NULL, " +
-          "rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), " +
-          "review_text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', " +
-          "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-          "FOREIGN KEY (provider_id) REFERENCES providers(id))"
-        ).run();
-        await env.DB.prepare(
-          "CREATE INDEX IF NOT EXISTS idx_customer_reviews_provider_status " +
-          "ON customer_reviews(provider_id, status)"
-        ).run();
 
         if (path === "/api/reviews" && request.method === "POST") {
           const account = await getAccount(request,env.DB);
@@ -764,10 +765,8 @@ export default {
         }
 
         if (path === "/api/admin/reviews" && request.method === "GET") {
-          if (!env.ADMIN_API_KEY) return respond({ error: "Admin authentication is not configured." }, 503);
-          if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
-            return respond({ error: "Unauthorized." }, 401);
-          }
+          const apiKeyOk = !!env.ADMIN_API_KEY && request.headers.get("Authorization") === `Bearer ${env.ADMIN_API_KEY}`;
+          if (!apiKeyOk && !canModerateReviews) return respond({ error: "Unauthorized." }, 401);
 
           const result = await env.DB.prepare(
             "SELECT r.id, r.provider_id, r.reviewer_name, r.rating, r.review_text, " +
@@ -779,10 +778,8 @@ export default {
         }
 
         if (path === "/api/admin/review-status" && request.method === "POST") {
-          if (!env.ADMIN_API_KEY) return respond({ error: "Admin authentication is not configured." }, 503);
-          if (request.headers.get("Authorization") !== `Bearer ${env.ADMIN_API_KEY}`) {
-            return respond({ error: "Unauthorized." }, 401);
-          }
+          const apiKeyOk = !!env.ADMIN_API_KEY && request.headers.get("Authorization") === `Bearer ${env.ADMIN_API_KEY}`;
+          if (!apiKeyOk && !canModerateReviews) return respond({ error: "Unauthorized." }, 401);
 
           const body = await request.json();
           const reviewId = Number.parseInt(body.review_id, 10);
@@ -806,14 +803,6 @@ export default {
         if (!Number.isInteger(providerId) || providerId < 1) {
           return respond({ error: "A valid provider_id is required." }, 400);
         }
-        await env.DB.prepare(
-          "CREATE TABLE IF NOT EXISTS customer_reviews (" +
-          "id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, " +
-          "reviewer_name TEXT NOT NULL, rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), " +
-          "review_text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', " +
-          "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
-          "FOREIGN KEY (provider_id) REFERENCES providers(id))"
-        ).run();
         const result = await env.DB.prepare(
           "SELECT reviewer_name, rating, review_text, created_at FROM customer_reviews " +
           "WHERE provider_id = ? AND status = 'published' ORDER BY created_at DESC LIMIT 50"
@@ -834,6 +823,8 @@ export default {
         const phone=String(body.customer_phone||"").trim().slice(0,60);
         const date=String(body.service_date||"").trim().slice(0,40);
         if(!category||!location||!details||!phone) return respond({error:"Choose a main category, enter the location, describe the job and provide a contact number."},400);
+        if(locationKey.length<2) return respond({error:"Enter a town or district for the service location."},400);
+        if(await rateLimited(env.DB,"service-request:"+account.id,10,3600)) return respond({error:"Too many requests. Please try again later."},429);
         const cat=await env.DB.prepare("SELECT id FROM categories WHERE active=1 AND parent_id IS NULL AND (LOWER(slug)=LOWER(?) OR LOWER(name)=LOWER(?)) LIMIT 1").bind(category,category).first();
         if(!cat) return respond({error:"Choose a valid active main service category."},400);
         const childCount=await env.DB.prepare("SELECT COUNT(*) AS total FROM categories WHERE parent_id=? AND active=1").bind(cat.id).first();
@@ -892,6 +883,7 @@ export default {
       if (path === "/api/booking-requests" && request.method === "POST") {
         const account = await getAccount(request,env.DB);
         if(!account || !["customer","provider"].includes(account.role)) return respond({error:"Create a customer account or sign in before requesting a service."},401);
+        if(await rateLimited(env.DB,"booking:"+account.id,20,3600)) return respond({error:"Too many requests. Please try again later."},429);
         const body=await request.json();
         const providerId=Number.parseInt(body.provider_id,10);
         const customerName=String(body.customer_name||account.display_name).trim().slice(0,100);
@@ -909,10 +901,9 @@ export default {
       }, 404);
 
     } catch (error) {
-      return respond({
-        error: "The request could not be completed.",
-        detail: error.message
-      }, 500);
+      if (error instanceof SyntaxError) return respond({ error: "Invalid request body." }, 400);
+      console.error("Unhandled error on " + path, error && error.stack ? error.stack : error);
+      return respond({ error: "The request could not be completed." }, 500);
     }
   }
 };
