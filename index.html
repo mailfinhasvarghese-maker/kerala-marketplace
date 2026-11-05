@@ -466,17 +466,17 @@ h1 em{font-style:normal;color:var(--g)}
  #categoryCards .category:hover,#categoryCards .category:focus-within{z-index:30;}
  #categoryCards .category-heading{display:flex;align-items:center;gap:10px;white-space:nowrap;}
  #categoryCards .category-subcategory-list{
-  position:absolute;top:calc(100% + 10px);left:0;z-index:60;
+  position:absolute;top:calc(100% + 10px);left:50%;z-index:60;
   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
   width:min(820px,calc(100vw - 48px));min-width:620px;max-width:820px;
   padding:22px;margin:0!important;border:1px solid var(--line);border-radius:20px;
   background:#fff;box-shadow:0 22px 55px #29233326;
-  opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);
+  opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,8px);
   transition:opacity .2s ease,transform .2s ease,visibility 0s linear .2s;
  }
  #categoryCards .category:hover .category-subcategory-list,
  #categoryCards .category:focus-within .category-subcategory-list{
-  opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0);
+  opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0);
   transition:opacity .2s ease,transform .2s ease,visibility 0s;
  }
  #categoryCards .category-subcategory-list .subcategory-tile{
