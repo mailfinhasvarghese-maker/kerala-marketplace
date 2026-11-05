@@ -900,6 +900,7 @@ export default {
         if(!chosen) return respond({error:"This provider has not submitted an offer."},404);
         const updated=await env.DB.prepare("UPDATE service_requests SET selected_provider_id=?,status='matched',updated_at=CURRENT_TIMESTAMP WHERE id=? AND customer_account_id=? AND status='open'").bind(providerId,id,account.id).run();
         if(!updated.meta?.changes) return respond({error:"This request is no longer open."},409);
+        await env.DB.prepare("UPDATE providers SET is_available=0,available_until=NULL WHERE id=?").bind(providerId).run();
         return respond({ok:true,message:"Provider selected. You can now contact them to confirm the job."});
       }
 
