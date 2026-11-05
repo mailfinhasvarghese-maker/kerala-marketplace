@@ -496,7 +496,7 @@ h1 em{font-style:normal;color:var(--g)}
  #categoryCards .category-subcategory-list{min-width:0;width:min(700px,calc(100vw - 36px));grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 @media(min-width:641px){.category-mobile-toggle{display:none!important;}}
-</style>
+.available-live{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:99px;background:#e7f9ed;color:#087b3c;font-size:12px;font-weight:800}.available-live:before{content:"";width:8px;height:8px;border-radius:50%;background:#19b85a;box-shadow:0 0 0 0 #19b85a80;animation:availablePulse 1.5s infinite}@keyframes availablePulse{70%{box-shadow:0 0 0 8px #19b85a00}100%{box-shadow:0 0 0 0 #19b85a00}}</style>
 
 <style id="nattukaar-brand-colours">
 /* Nattukaar brand palette: Navy, Teal and White */
@@ -1161,6 +1161,7 @@ function renderMap(){
      const info=document.createElement("div");info.className="map-provider-info";
      const name=document.createElement("div");name.className="map-provider-name";name.textContent=p.name||"Local provider";
      const service=document.createElement("div");service.className="map-provider-service";service.textContent=p.service||p.category||"Service provider";
+     if(p.availableNow){const live=document.createElement("span");live.className="available-live";live.textContent="AVAILABLE NOW";info.appendChild(live);}
      const location=document.createElement("div");location.className="map-provider-location";location.textContent=[p.town,p.location].filter(Boolean).join(", ")||(Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)?"Location available":"Location not specified");
      info.append(name,service,location);
      const actions=document.createElement("div");actions.className="map-provider-actions";
@@ -1256,7 +1257,7 @@ function render() {
             <h3>${esc(p.name)}</h3>
             <p>${esc(p.service)}</p>
           </div>
-          <span class="sample">ACTIVE</span>
+          ${p.availableNow ? '<span class="available-live">AVAILABLE NOW</span>' : '<span class="sample">ACTIVE</span>'}
         </div>
         <p class="desc">${esc(p.desc)}</p>
         <div class="stats">
@@ -1339,6 +1340,7 @@ async function loadProviders() {
     longitude: p.longitude===null||p.longitude===undefined||p.longitude===''?null:Number(p.longitude),
     distanceKm: null,
     icon: icons[category] || '📍',
+    availableNow: Number(p.available_now)===1,
     years: Number(p.years_experience) || 0,
     rating: p.average_rating == null ? 'New' : p.average_rating,
     reviews: Number(p.review_count) || 0,
@@ -1384,7 +1386,7 @@ function openProfile(p) {
     </div>
     <div class="profile-content">
       ${p.images && p.images.length ? `<div class="profile-gallery">${p.images.map((img,i)=>`<img src="${img.url}" alt="${esc(p.name)} photo ${i+1}" data-profile-image="${i}">`).join("")}</div>` : ""}
-      <div class="profile-details">
+      ${p.availableNow ? '<p><span class="available-live">LIVE · AVAILABLE NOW</span> This provider is ready to accept a new request.</p>' : ''}<div class="profile-details">
         <div class="profile-detail"><small>EXPERIENCE</small><strong>${p.years} year${p.years === 1 ? '' : 's'}</strong></div>
         <div class="profile-detail"><small>CUSTOMER RATING</small><strong>${rating}</strong></div>
         <div class="profile-detail"><small>CONTACT PHONE</small><strong>${phone}</strong></div>
