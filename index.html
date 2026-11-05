@@ -1069,7 +1069,7 @@ const $ = id => document.getElementById(id);
      const rawIcon=String(child.icon||"");
      const imageUrl=String(rawImage||((rawIcon.startsWith("https://")||rawIcon.startsWith("http://")||rawIcon.startsWith("data:image/"))?rawIcon:""));
      if(imageUrl){const img=document.createElement("img");img.src=imageUrl;img.alt="";img.loading="lazy";img.onerror=()=>{visual.textContent="✦";};visual.appendChild(img);}
-     else if(rawIcon&&/[^\\u0000-\\u00ff]/.test(rawIcon)){visual.textContent=rawIcon;}
+     else if(rawIcon&&rawIcon.codePointAt(0)>255){visual.textContent=rawIcon;}
      else {visual.innerHTML=categoryIconSvg(child);}
      const label=document.createElement("span");label.textContent=name(child);chip.append(visual,label);
      chip.addEventListener("click",e=>{e.stopPropagation();filter.value=c.name;$("keyword").value=name(child);render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});});
