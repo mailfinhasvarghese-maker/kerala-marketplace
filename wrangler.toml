@@ -14,3 +14,7 @@ database_id = "6f0ac318-eb85-4e61-83a6-068bf75cdbac"
 [[r2_buckets]]
 binding = "IMAGES"
 bucket_name = "nattukaar-provider-images"
+
+# Optional: extra browser origins allowed to call this API (comma-separated).
+# [vars]
+# ALLOWED_ORIGINS = "https://www.example.com"
