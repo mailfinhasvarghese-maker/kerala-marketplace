@@ -40,7 +40,7 @@ async function runSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
-  const additions = {providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
+  const additions = {providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"],["is_available","INTEGER NOT NULL DEFAULT 0"],["available_until","TEXT"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
     const info = await db.prepare("PRAGMA table_info("+table+")").all();
     const names = new Set((info.results||[]).map(x=>x.name));
@@ -300,6 +300,28 @@ export default {
         return respond({ok:true,message:"Photo deleted."});
       }
 
+      if (path === "/api/provider/availability" && request.method === "GET") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        await env.DB.prepare("UPDATE providers SET is_available=0,available_until=NULL WHERE id=? AND is_available=1 AND (available_until IS NULL OR available_until<=datetime('now'))").bind(account.provider_id).run();
+        const p=await env.DB.prepare("SELECT is_available,available_until,CASE WHEN is_available=1 AND available_until>datetime('now') THEN 1 ELSE 0 END AS available_now FROM providers WHERE id=?").bind(account.provider_id).first();
+        return respond({available:!!p?.available_now,available_until:p?.available_until||null});
+      }
+      if (path === "/api/provider/availability" && request.method === "POST") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const body=await request.json(), enabled=body.available===true;
+        if(enabled){
+          const pending=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=? AND status='pending'").bind(account.provider_id).first();
+          const active=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=? AND status='accepted'").bind(account.provider_id).first();
+          if(Number(pending?.total||0)>0 || Number(active?.total||0)>0) return respond({error:"You have a pending or active booking. Update its status before going Available Now."},409);
+          await env.DB.prepare("UPDATE providers SET is_available=1,available_until=datetime('now','+30 minutes') WHERE id=? AND status='active'").bind(account.provider_id).run();
+        }else{
+          await env.DB.prepare("UPDATE providers SET is_available=0,available_until=NULL WHERE id=?").bind(account.provider_id).run();
+        }
+        const p=await env.DB.prepare("SELECT CASE WHEN is_available=1 AND available_until>datetime('now') THEN 1 ELSE 0 END AS available_now,available_until FROM providers WHERE id=?").bind(account.provider_id).first();
+        return respond({ok:true,available:!!p?.available_now,available_until:p?.available_until||null,message:p?.available_now?"You are visible as Available Now for up to 30 minutes.":"Your Available Now status is off."});
+      }
       if (path === "/api/provider/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
@@ -347,6 +369,7 @@ export default {
         const current = String(booking.status||"").toLowerCase();
         if((["accepted","rejected"].includes(status)&&current!=="pending")||(status==="completed"&&current!=="accepted")) return respond({error:status==="completed"?"Only accepted bookings can be marked completed.":"Only pending bookings can be accepted or rejected."},409);
         await env.DB.prepare("UPDATE booking_requests SET status=?,provider_response_at=CASE WHEN ? IN ('accepted','rejected') THEN CURRENT_TIMESTAMP ELSE provider_response_at END,completed_at=CASE WHEN ?='completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id=? AND provider_id=?").bind(status,status,status,id,account.provider_id).run();
+        if(status==="accepted") await env.DB.prepare("UPDATE providers SET is_available=0,available_until=NULL WHERE id=?").bind(account.provider_id).run();
         return respond({ok:true,booking_request_id:id,status});
       }
 
@@ -559,7 +582,7 @@ export default {
           "SELECT " +
           "p.id, p.business_name, p.contact_name, p.phone, p.email, " +
           "p.district, p.town, p.address, p.description, p.latitude, p.longitude, " +
-          "p.years_experience, p.created_at, " +
+          "p.years_experience, p.created_at, CASE WHEN p.is_available=1 AND p.available_until>datetime('now') THEN 1 ELSE 0 END AS available_now, CASE WHEN p.is_available=1 AND p.available_until>datetime('now') THEN p.available_until ELSE NULL END AS available_until, " +
           "c.name AS category_name, c.slug AS category_slug, sc.name AS subcategory_name, sc.slug AS subcategory_slug, " +
           "ROUND(AVG(CASE WHEN r.status = 'published' THEN r.rating END), 1) AS average_rating, " +
           "COUNT(CASE WHEN r.status = 'published' THEN r.id END) AS review_count " +
