@@ -448,6 +448,18 @@ h1 em{font-style:normal;color:var(--g)}
 .header-search .voice-search-toggle[aria-pressed="true"]{background:#20b486;color:#fff;animation:nearestorVoicePulse 1.2s ease-in-out infinite}
 @keyframes nearestorVoicePulse{50%{box-shadow:0 0 0 6px #20b48630}}
 .header-search .voice-search-toggle:disabled{opacity:.55;cursor:not-allowed}
+
+/* Mobile category accordion: tap the right-side arrow to reveal subcategories. */
+@media(max-width:640px){
+ .category-heading{display:flex;align-items:center;gap:10px;width:100%;}
+ .category-heading .cat-icon{margin:0;}
+ .category-heading strong{flex:1;min-width:0;}
+ .category-mobile-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;height:34px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--g);font-size:20px;line-height:1;transition:transform .22s ease,background .22s ease;}
+ .category-mobile-toggle[aria-expanded="true"]{background:var(--mint);transform:rotate(180deg);}
+ .category-subcategory-list{display:flex!important;flex-wrap:wrap;gap:6px;max-height:0;opacity:0;overflow:hidden;margin-top:0!important;transition:max-height .28s ease,opacity .2s ease,margin-top .28s ease;}
+ .category.is-expanded .category-subcategory-list{max-height:500px;opacity:1;margin-top:9px!important;}
+}
+@media(min-width:641px){.category-mobile-toggle{display:none!important;}}
 </style>
 
 <style id="nattukaar-brand-colours">
@@ -998,7 +1010,28 @@ const $ = id => document.getElementById(id);
  }
  if(cards){
   cards.innerHTML="";
-  mainCategories.forEach(c=>{const wrap=document.createElement("div");wrap.className="category";wrap.style.cursor="default";const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);const title=document.createElement("strong");title.textContent=name(c);const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");wrap.append(icon,title,desc);const children=serviceCategories.filter(x=>Number(x.parent_id)===Number(c.id));if(children.length){const list=document.createElement("div");list.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px";children.forEach(child=>{const chip=document.createElement("button");chip.type="button";chip.className="btn outline";chip.style.cssText="font-size:11px;padding:5px 8px";chip.textContent=name(child);chip.addEventListener("click",()=>{filter.value=c.name;$("keyword").value=name(child);render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});});list.appendChild(chip);});wrap.appendChild(list);}wrap.addEventListener("click",e=>{if(e.target===wrap||e.target===icon||e.target===title||e.target===desc){filter.value=c.name;$("keyword").value="";render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});}});cards.appendChild(wrap);});
+  mainCategories.forEach(c=>{
+   const wrap=document.createElement("div");wrap.className="category";wrap.style.cursor="default";
+   const heading=document.createElement("div");heading.className="category-heading";
+   const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);
+   const title=document.createElement("strong");title.textContent=name(c);
+   heading.append(icon,title);
+   const children=serviceCategories.filter(x=>Number(x.parent_id)===Number(c.id));
+   if(children.length){
+    const toggle=document.createElement("button");toggle.type="button";toggle.className="category-mobile-toggle";toggle.setAttribute("aria-label",ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories");toggle.setAttribute("aria-expanded","false");toggle.textContent="⌄";
+    toggle.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const expanded=wrap.classList.toggle("is-expanded");toggle.setAttribute("aria-expanded",String(expanded));toggle.setAttribute("aria-label",expanded?(ml?"കീഴ്വിഭാഗങ്ങൾ മറയ്ക്കുക":hi?"उपश्रेणियाँ छिपाएँ":"Hide subcategories"):(ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories"));});
+    heading.appendChild(toggle);
+   }
+   const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");
+   wrap.append(heading,desc);
+   if(children.length){
+    const list=document.createElement("div");list.className="category-subcategory-list";list.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px";
+    children.forEach(child=>{const chip=document.createElement("button");chip.type="button";chip.className="btn outline";chip.style.cssText="font-size:11px;padding:5px 8px";chip.textContent=name(child);chip.addEventListener("click",e=>{e.stopPropagation();filter.value=c.name;$("keyword").value=name(child);render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});});list.appendChild(chip);});
+    wrap.appendChild(list);
+   }
+   wrap.addEventListener("click",e=>{if(e.target===wrap||e.target===icon||e.target===title||e.target===desc||e.target===heading){filter.value=c.name;$("keyword").value="";render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});}});
+   cards.appendChild(wrap);
+  });
   const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat="all";b.innerHTML='<strong>'+all+'</strong><small>'+more+'</small>';cards.appendChild(b);
  }
 }
