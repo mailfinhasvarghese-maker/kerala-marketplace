@@ -434,7 +434,19 @@ h1 em{font-style:normal;color:var(--g)}
     width: 17px;
     height: 17px;
   }
-  .nav-inner > .header-search-wrap,
+  /* Keep the AI search and microphone available on mobile. */
+  .nav-inner > .header-search-wrap {
+    display: block !important;
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+  }
+  .nav-inner > .header-search-wrap .header-search {
+    display: flex !important;
+    width: 100%;
+    max-width: 100%;
+    min-height: 46px;
+  }
   .nav-inner > #languageToggle {
     display: none !important;
   }
