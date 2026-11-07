@@ -1065,7 +1065,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
         <span class="ai-search-label"><span class="ai-sparkle">✦</span> AI SEARCH</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 5 5"></path></svg>
         <input id="headerSearchInput" type="search" placeholder="Try “plumber near me” or “taxi in Aluva”..." aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions">
-        <button class="voice-search-toggle" id="voiceSearchToggle" type="button" aria-label="Search by voice" title="Search by voice" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg></button>
+        <button class="voice-search-toggle" id="voiceSearchToggle" type="button" aria-label="Search by voice" title="Search by voice" aria-pressed="false" onclick="startVoiceSearch();return false;"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg></button>
         <button class="advanced-search-toggle" id="advancedSearchToggle" type="button" aria-label="Advanced search" title="Advanced search" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg></button>
       </form>
       <div id="headerSearchSuggestions" role="listbox" class="header-search-suggestions"></div>
@@ -2313,7 +2313,7 @@ function startVoiceSearch(){
   toast('Could not start voice search. Please check microphone permission and try again.');
  }
 }
-if(voiceSearchButton)voiceSearchButton.addEventListener('click',startVoiceSearch);
+// Voice button uses its direct inline click handler for reliable mobile activation.
 
 function runHeaderSearch(value){const q=String(value||'').trim();if(q)applySmartNearbySearch(q);closeHeaderSearchSuggestions();}
 function chooseHeaderSuggestion(item){headerSearchInput.value=item.value;if(item.kind==='location'){$('locFilter').value=item.value;$('keyword').value='';showLocationGreeting(item.value);}else if(item.kind==='category'){$('catFilter').value=item.value;$('keyword').value='';}else{$('keyword').value=item.value;}closeHeaderSearchSuggestions();render();renderMap();document.querySelector('#providers')?.scrollIntoView({behavior:'smooth',block:'start'});}
