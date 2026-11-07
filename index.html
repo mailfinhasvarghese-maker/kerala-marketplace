@@ -2277,7 +2277,13 @@ function startVoiceSearch(){
  try{recognition=new SpeechRecognition();}
  catch(error){toast('Voice search could not initialise. Please check microphone permission or type your search.');return;}
  voiceRecognition=recognition;
- recognition.lang=currentLanguage==='ml'?'ml-IN':currentLanguage==='hi'?'hi-IN':'en-IN';
+ let voiceLanguage='en';
+  try{
+   voiceLanguage=(document.documentElement.getAttribute('data-language')||document.documentElement.lang||localStorage.getItem('nattukaar-language')||'en').toLowerCase();
+  }catch(error){
+   voiceLanguage=(document.documentElement.getAttribute('data-language')||document.documentElement.lang||'en').toLowerCase();
+  }
+  recognition.lang=voiceLanguage==='ml'?'ml-IN':voiceLanguage==='hi'?'hi-IN':'en-IN';
  recognition.interimResults=false;recognition.maxAlternatives=1;
  voiceSearchButton.setAttribute('aria-pressed','true');
  voiceSearchButton.title='Listening… tap to stop';
