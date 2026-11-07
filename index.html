@@ -759,6 +759,228 @@ h1 em{font-style:normal;color:var(--g)}
   }
 }
 
+
+/* Mobile search-first header and compact sticky state. */
+@media (max-width: 640px) {
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid rgba(231,222,241,.8);
+    background: rgba(255,255,255,.94);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    transition: box-shadow .22s ease, background .22s ease;
+  }
+  .nav-inner {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 9px 10px;
+    padding: 10px 0 12px;
+    transition: padding .22s ease, gap .22s ease;
+  }
+  .nav-inner > .brand {
+    order: 1;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+  .nav-inner > #searchLocallyBtn {
+    order: 2;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 112px;
+    width: auto;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid #e6dcef !important;
+    border-radius: 12px;
+    background: #f7f3fb !important;
+    color: #60477f;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 750;
+    white-space: nowrap;
+    box-shadow: none !important;
+  }
+  .nav-inner > #searchLocallyBtn svg {
+    display: block;
+    flex: 0 0 17px;
+    width: 17px;
+    height: 17px;
+    margin: 0;
+  }
+  .nav-inner > #searchLocallyBtn span {
+    display: inline-block;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .nav-inner > .header-search-wrap {
+    order: 3;
+    display: block !important;
+    position: relative;
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+  }
+  .header-search-wrap .header-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: none;
+    min-height: 50px;
+    padding: 5px 8px 5px 12px;
+    border: 1px solid transparent;
+    border-radius: 15px;
+    background:
+      linear-gradient(#fff,#fff) padding-box,
+      linear-gradient(105deg,#bda5df,#8064a9,#b8d7ed,#d4b8ed,#bda5df) border-box;
+    background-size: 100% 100%, 260% 100%;
+    animation: nearestorAiBorder 7s linear infinite;
+    box-shadow: 0 5px 18px rgba(96,71,127,.09);
+  }
+  @keyframes nearestorAiBorder {
+    0% { background-position: 0 0, 0% 50%; }
+    100% { background-position: 0 0, 260% 50%; }
+  }
+  .header-search .ai-search-label {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 7px;
+    border-radius: 8px;
+    background: linear-gradient(135deg,#f1eafa,#f4f7ff);
+    color: #73569a;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 850;
+    letter-spacing: .065em;
+    white-space: nowrap;
+  }
+  .ai-search-label .ai-sparkle {
+    display: inline-block;
+    font-size: 11px;
+    background: linear-gradient(120deg,#8064a9,#5b9ec8,#b27bd1);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: nearestorSparkle 2.2s ease-in-out infinite;
+  }
+  @keyframes nearestorSparkle {
+    0%,100% { transform: rotate(0deg) scale(.92); opacity:.78; }
+    50% { transform: rotate(22deg) scale(1.2); opacity:1; }
+  }
+  .header-search > svg {
+    display: block;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    color: #8b7b9e;
+  }
+  .header-search input {
+    min-width: 0;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #292333;
+    font-size: 12px;
+    box-shadow: none !important;
+  }
+  .header-search input::placeholder { color: #9b91a6; opacity: 1; }
+  .header-search .voice-search-toggle {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    color: #73569a;
+  }
+  .header-search .advanced-search-toggle { display: none; }
+  .header-search-suggestions {
+    top: calc(100% + 7px);
+    z-index: 70;
+    border-radius: 13px;
+    box-shadow: 0 14px 32px rgba(41,35,51,.15);
+  }
+  .nav.is-scrolled {
+    box-shadow: 0 5px 20px rgba(41,35,51,.09);
+    background: rgba(255,255,255,.97);
+  }
+  .nav.is-scrolled .nav-inner {
+    flex-wrap: nowrap;
+    gap: 7px;
+    padding: 7px 0;
+  }
+  .nav.is-scrolled .nav-inner > .brand {
+    order: 1;
+    flex: 0 0 auto;
+    width: auto;
+  }
+  .nav.is-scrolled .brand .mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    font-size: 19px;
+  }
+  .nav.is-scrolled .brand > span:last-child { display: none; }
+  .nav.is-scrolled .nav-inner > .header-search-wrap {
+    order: 2;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  .nav.is-scrolled .header-search-wrap .header-search {
+    min-height: 40px;
+    gap: 6px;
+    padding: 3px 5px 3px 8px;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+  .nav.is-scrolled .header-search .ai-search-label { display: none; }
+  .nav.is-scrolled .header-search > svg { width: 16px; height: 16px; flex-basis: 16px; }
+  .nav.is-scrolled .header-search input { height: 32px; font-size: 11px; }
+  .nav.is-scrolled .header-search .voice-search-toggle { display: none; }
+  .nav.is-scrolled .nav-inner > #searchLocallyBtn {
+    order: 3;
+    flex: 0 0 38px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 11px;
+    background: #f1eafa !important;
+  }
+  .nav.is-scrolled .nav-inner > #searchLocallyBtn span { display: none; }
+  .nav.is-scrolled .nav-inner > #searchLocallyBtn svg {
+    flex: 0 0 19px;
+    width: 19px;
+    height: 19px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-search-wrap .header-search,
+  .ai-search-label .ai-sparkle { animation: none !important; }
+}
+
+
 </style>
 
 <style id="nattukaar-brand-colours">
@@ -797,7 +1019,8 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
     </a>
     <button class="btn outline search-locally-btn" id="searchLocallyBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><span>Search Locally</span></button>
     <div class="header-search-wrap">
-      <form class="header-search" id="headerSearchForm" role="search" aria-label="Search services">
+      <form class="header-search" id="headerSearchForm" role="search" aria-label="AI-powered service search">
+        <span class="ai-search-label"><span class="ai-sparkle">✦</span> AI SEARCH</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 5 5"></path></svg>
         <input id="headerSearchInput" type="search" placeholder="Try “plumber near me” or “taxi in Aluva”..." aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions">
         <button class="voice-search-toggle" id="voiceSearchToggle" type="button" aria-label="Search by voice" title="Search by voice" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg></button>
@@ -1949,6 +2172,14 @@ function attachPlaceAutocomplete(inputId, boxId, onSelect) {
   document.addEventListener('click',e=>{if(!e.target.closest('#'+boxId)&&e.target!==input)close();});
 }
 
+/* Collapse the mobile header into logo · search · location while scrolling. */
+(function(){
+ const nav=document.querySelector('header.nav');
+ if(!nav)return;
+ const update=()=>nav.classList.toggle('is-scrolled',window.scrollY>72);
+ update();
+ window.addEventListener('scroll',update,{passive:true});
+})();
 const searchLocallyBtn=$('searchLocallyBtn');
 if(searchLocallyBtn)searchLocallyBtn.addEventListener('click',function(){
  localSearchActive=true;
