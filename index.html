@@ -1048,7 +1048,25 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
 .search-ai-mark{color:#20B486}
 
 </style>
-</head>
+<style>
+/* React Bits RotatingText-inspired search placeholder */
+.header-search-input-wrap{position:relative;display:flex;align-items:center;flex:1 1 auto;min-width:0;height:100%}
+.header-search-input-wrap #headerSearchInput{position:relative;z-index:2;width:100%;height:100%;min-width:0;background:transparent}
+.header-search-input-wrap #headerSearchInput::placeholder{color:transparent}
+.rotating-search-placeholder{position:absolute;z-index:1;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;white-space:nowrap;overflow:hidden;pointer-events:none;color:#7b847e;font-size:inherit;line-height:1.35}
+.rotating-search-placeholder[hidden]{display:none}
+.header-search-input-wrap:focus-within .rotating-search-placeholder{opacity:0}
+.rotating-search-fixed{flex:0 0 auto}
+.rotating-search-stage{position:relative;display:inline-grid;flex:0 1 auto;min-width:0;vertical-align:middle;overflow:hidden}
+.rotating-search-word{display:inline-flex;white-space:pre;grid-area:1/1}
+.rotating-search-word.is-leaving{position:absolute;inset:0;pointer-events:none}
+.rotating-search-letter{display:inline-block;white-space:pre;will-change:transform,opacity}
+.rotating-search-word.is-entering .rotating-search-letter{animation:nearestor-letter-in .48s cubic-bezier(.22,1,.36,1) both}
+.rotating-search-word.is-leaving .rotating-search-letter{animation:nearestor-letter-out .32s cubic-bezier(.4,0,1,1) both}
+@keyframes nearestor-letter-in{from{transform:translate3d(0,110%,0);opacity:0}to{transform:translate3d(0,0,0);opacity:1}}
+@keyframes nearestor-letter-out{from{transform:translate3d(0,0,0);opacity:1}to{transform:translate3d(0,-115%,0);opacity:0}}
+@media(prefers-reduced-motion:reduce){.rotating-search-word.is-entering .rotating-search-letter,.rotating-search-word.is-leaving .rotating-search-letter{animation:none}}
+</style></head>
 
 <body>
 <div class="notice"><span>Kerala’s local services marketplace</span><span class="notice-right">Discover · Compare · Contact</span></div>
@@ -1064,7 +1082,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
       <form class="header-search" id="headerSearchForm" role="search" aria-label="AI-powered service search">
         <span class="ai-search-label"><span class="ai-sparkle">✦</span> AI SEARCH</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 5 5"></path></svg>
-        <input id="headerSearchInput" type="search" placeholder="Try “plumber near me” or “taxi in Aluva”..." aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions">
+        <span class="header-search-input-wrap"><input id="headerSearchInput" type="search" placeholder="Try “Auto Rickshaw” near me" aria-label="Search services, providers or locations" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="headerSearchSuggestions"><span class="rotating-search-placeholder" id="rotatingSearchPlaceholder" aria-hidden="true"></span></span>
         <button class="voice-search-toggle" id="voiceSearchToggle" type="button" aria-label="Search by voice" title="Search by voice" aria-pressed="false" onclick="startVoiceSearch();return false;"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg></button>
         <button class="advanced-search-toggle" id="advancedSearchToggle" type="button" aria-label="Advanced search" title="Advanced search" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"></path><circle cx="15" cy="7" r="2"></circle><circle cx="9" cy="17" r="2"></circle></svg></button>
       </form>
@@ -2613,10 +2631,11 @@ loadCategories().then(async()=>{
 </script>
 
 <script>
-/* Rotating, language-aware examples for the main AI search input. */
+/* React Bits-style rotating text: staggered character slide-up/fade. */
 (function(){
  const input=document.getElementById("headerSearchInput");
- if(!input)return;
+ const host=document.getElementById("rotatingSearchPlaceholder");
+ if(!input||!host)return;
  const examples={
   en:[
    {term:"Auto Rickshaw",prefix:"Try “",suffix:"” near me"},
@@ -2637,35 +2656,81 @@ loadCategories().then(async()=>{
    {term:"प्लंबर",prefix:"मेरे पास “",suffix:"” खोजें"}
   ]
  };
- let index=0;
- let activeLanguage="en";
+ let index=0,rotationTimer=null,language="en";
+ const reduceMotion=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
  function getLanguage(){
-  const lang=(document.documentElement.lang||"en").toLowerCase();
+  const lang=(document.documentElement.getAttribute("data-language")||document.documentElement.lang||"en").toLowerCase();
   return examples[lang]?lang:"en";
  }
- function render(){
-  if(input.value||document.activeElement===input)return;
-  activeLanguage=getLanguage();
-  const list=examples[activeLanguage];
-  const item=list[index%list.length];
-  input.placeholder=item.prefix+item.term+item.suffix;
+ function makeWord(term,entering){
+  const word=document.createElement("span");
+  word.className="rotating-search-word"+(entering?" is-entering":"");
+  Array.from(term).forEach((character,i)=>{
+   const letter=document.createElement("span");
+   letter.className="rotating-search-letter";
+   letter.textContent=character===" "?"\u00a0":character;
+   if(entering)letter.style.animationDelay=(Math.min(i,18)*22)+"ms";
+   word.appendChild(letter);
+  });
+  return word;
  }
- function advance(){
+ function phrase(item,animate){
+  host.replaceChildren();
+  const prefix=document.createElement("span");
+  prefix.className="rotating-search-fixed";
+  prefix.textContent=item.prefix;
+  const stage=document.createElement("span");
+  stage.className="rotating-search-stage";
+  stage.appendChild(makeWord(item.term,animate));
+  const suffix=document.createElement("span");
+  suffix.className="rotating-search-fixed";
+  suffix.textContent=item.suffix;
+  host.append(prefix,stage,suffix);
+ }
+ function show(animate){
+  if(input.value||document.activeElement===input){host.hidden=true;return;}
+  language=getLanguage();
+  host.hidden=false;
+  phrase(examples[language][index],animate&&!reduceMotion);
+ }
+ function next(){
   if(input.value||document.activeElement===input)return;
+  const old=host.querySelector(".rotating-search-word");
+  if(old&&!reduceMotion)old.classList.add("is-leaving");
   index=(index+1)%4;
-  render();
+  language=getLanguage();
+  const item=examples[language][index];
+  if(reduceMotion){phrase(item,false);return;}
+  const prefix=host.querySelector(".rotating-search-fixed");
+  const suffix=host.querySelectorAll(".rotating-search-fixed")[1];
+  const stage=host.querySelector(".rotating-search-stage");
+  if(!stage||!prefix||!suffix){phrase(item,true);return;}
+  prefix.textContent=item.prefix;
+  suffix.textContent=item.suffix;
+  const incoming=makeWord(item.term,true);
+  stage.appendChild(incoming);
+  window.setTimeout(()=>{
+   const leaving=stage.querySelector(".is-leaving");
+   if(leaving)leaving.remove();
+  },650);
  }
- render();
- const rotation=setInterval(advance,2800);
- input.addEventListener("focus",()=>{});
- input.addEventListener("blur",render);
+ function start(){
+  window.clearInterval(rotationTimer);
+  rotationTimer=window.setInterval(next,2800);
+ }
+ input.placeholder="";
+ show(false);
+ start();
+ input.addEventListener("focus",()=>{host.hidden=true;});
+ input.addEventListener("input",()=>{host.hidden=!!input.value;});
+ input.addEventListener("blur",()=>{if(!input.value){show(false);start();}});
  document.addEventListener("change",event=>{
   if(event.target&&event.target.id==="languageToggle"){
    index=0;
-   setTimeout(render,0);
+   window.setTimeout(()=>{show(false);start();},80);
   }
  });
- document.documentElement.addEventListener("languagechange",()=>{index=0;render();});
+ document.documentElement.addEventListener("languagechange",()=>{index=0;show(false);start();});
 })();
 </script>
 </body>
