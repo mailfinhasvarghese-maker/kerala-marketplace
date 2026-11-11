@@ -1025,6 +1025,27 @@ h1 em{font-style:normal;color:var(--g)}
 }
 
 
+
+/* Four primary homepage categories, arranged as visual tiles. */
+.compact-hero{padding:25px 0 20px}
+.compact-hero-inner{display:flex;flex-direction:column;align-items:stretch;gap:16px}
+.compact-hero-inner .hero-copy{width:100%}
+#categoryCards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;overflow:visible}
+#categoryCards .category{display:flex;min-width:0;min-height:154px;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:15px 10px;border:1px solid var(--line);border-radius:17px;background:#fff;color:var(--ink);text-align:center;white-space:normal;box-shadow:0 3px 12px rgba(23,60,105,.06);cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+#categoryCards .category:hover,#categoryCards .category:focus-visible{transform:translateY(-2px);border-color:#b7dfd1;box-shadow:0 8px 20px rgba(23,60,105,.1)}
+#categoryCards .category-illustration{display:grid;place-items:center;width:66px;height:66px;font-size:48px;line-height:1}
+#categoryCards .category strong{font-size:15px;line-height:1.35;font-weight:700}
+#instantRequestBtn{align-self:center;min-height:48px;padding:12px 22px}
+@media(max-width:640px){
+ .compact-hero{padding:16px 0 18px}
+ .compact-hero-inner{gap:13px;padding:18px 14px}
+ #categoryCards{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ #categoryCards .category{min-height:132px;padding:10px 5px;border-radius:14px;gap:9px}
+ #categoryCards .category-illustration{width:52px;height:52px;font-size:39px}
+ #categoryCards .category strong{font-size:12px;line-height:1.3}
+ #instantRequestBtn{width:100%;align-self:stretch}
+}
+
 </style>
 
 <style id="nattukaar-brand-colours">
@@ -1100,12 +1121,12 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
 <main>
 <section class="hero compact-hero">
   <div class="wrap compact-hero-inner">
-    <div>
+    <div class="hero-copy">
       <span class="eyebrow"><span class="dot"></span> LOCAL SERVICES, MADE SIMPLE</span>
       <h1>Find trusted services <em>near you.</em></h1>
       <p>Discover local taxi providers, rentals, skilled workers and service professionals across Kerala.</p>
     </div>
-    <button class="btn primary hero-join" data-join>＋ Join as a provider</button>
+    <div class="categories" id="categoryCards" aria-label="Browse the four main service categories"></div>
     <button type="button" class="btn outline" id="instantRequestBtn">✦ Send one request to nearby providers</button>
   </div>
 </section>
@@ -1137,20 +1158,6 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
   </div>
 </section>
 
-<section class="section" id="categories">
-  <div class="wrap">
-    <div class="head">
-      <div>
-        <span class="eyebrow">BROWSE BY CATEGORY</span>
-        <h2>What can we help you find?</h2>
-        <p>Start with a service category, then compare providers.</p>
-      </div>
-    </div>
-    <div class="categories" id="categoryCards">
-      <button class="category" data-cat="all"><span class="cat-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><strong>All services</strong><small>Explore every category</small></button>
-    </div>
-  </div>
-</section>
 <section class="map-section" aria-label="Map of local service providers"><div class="wrap"><div id="mapPanel"><div class="map-tools"><div><strong>Providers near you</strong><div class="map-note" id="mapStatus">Allow location to sort providers by distance, or search by district.</div><div id="locationGreeting" class="location-greeting" aria-live="polite" hidden></div></div><div class="location-row"><button class="btn light" type="button" id="useMyLocation">Use my current location</button><button class="btn outline" type="button" id="clearLocation">Clear location</button></div></div><div class="map-explorer"><div id="providerMap" role="application" aria-label="Map showing service providers"></div><aside class="map-provider-panel" aria-label="Providers shown on map"><div class="map-provider-heading"><strong>Providers on the map</strong><span id="mapProviderCount">Loading</span></div><div id="mapProviderCards" class="map-provider-cards"><div class="map-empty">Loading local providers…</div></div></aside></div></div></div></section>
 
 
@@ -1583,52 +1590,46 @@ const $ = id => document.getElementById(id);
  if(!Array.isArray(serviceCategories)||!serviceCategories.length)return;
  const ml=currentLanguage==="ml",hi=currentLanguage==="hi",filter=$('catFilter'),cards=$('categoryCards');
  const mainCategories=serviceCategories.filter(c=>!c.parent_id);
+ const groups=[
+  {key:"Transport",label:ml?"ഗതാഗതം":hi?"परिवहन":"Transport",icon:"🚕",match:/transport|taxi|rental|vehicle|mobility/i},
+  {key:"Labours & Skilled Workers",label:ml?"തൊഴിലാളികളും വിദഗ്ധരും":hi?"मज़दूर और कुशल कारीगर":"Labours & Skilled Workers",icon:"🧰",match:/labou?r|worker|skilled/i},
+  {key:"Home Services",label:ml?"ഗൃഹ സേവനങ്ങൾ":hi?"घरेलू सेवाएँ":"Home Services",icon:"🏠",match:/home.*service|home.*business|household/i},
+  {key:"Events & Entertainment",label:ml?"ഇവന്റുകളും വിനോദവും":hi?"कार्यक्रम और मनोरंजन":"Events & Entertainment",icon:"🎉",match:/event|entertainment/i}
+ ];
+
+ const groupForProvider=p=>{
+  const value=[p.category,p.service,p.tags].filter(Boolean).join(" ");
+  if(/taxi|transport|rental|vehicle|mobility/i.test(value))return "Transport";
+  if(/labou?r|worker|skilled/i.test(value))return "Labours & Skilled Workers";
+  if(/home.*service|home.*business|plumb|electric|carpent|clean|repair/i.test(value))return "Home Services";
+  if(/event|entertainment|cater|photograph|decorat/i.test(value))return "Events & Entertainment";
+  return "";
+ };
+ window.nattukaarGroupForProvider=groupForProvider;
  const name=c=>ml?(c.name_ml||c.name):hi?(c.name_hi||c.name):c.name;
  const all=ml?"എല്ലാ സേവനങ്ങളും":hi?"सभी सेवाएँ":"All services";
  const more=ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":hi?"सभी श्रेणियाँ देखें":"Explore every category";
  if(filter){
   const selected=filter.value||"all";filter.innerHTML="";
   const option=document.createElement("option");option.value="all";option.textContent=all;filter.appendChild(option);
-  mainCategories.forEach(c=>{const o=document.createElement("option");o.value=c.name;o.textContent=name(c);filter.appendChild(o);});
+  groups.forEach(g=>{const o=document.createElement("option");o.value=g.key;o.textContent=g.label;filter.appendChild(o);});
   filter.value=selected;
  }
  if(cards){
   cards.innerHTML="";
-  mainCategories.forEach(c=>{
-   const wrap=document.createElement("div");wrap.className="category";wrap.style.cursor="default";
-   const heading=document.createElement("div");heading.className="category-heading";
-   const icon=document.createElement("span");icon.className="cat-icon";icon.innerHTML=categoryIconSvg(c);
-   const title=document.createElement("strong");title.textContent=name(c);
-   heading.append(icon,title);
-   const children=serviceCategories.filter(x=>Number(x.parent_id)===Number(c.id));
-   if(children.length){
-    const toggle=document.createElement("button");toggle.type="button";toggle.className="category-mobile-toggle";toggle.setAttribute("aria-label",ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories");toggle.setAttribute("aria-expanded","false");toggle.setAttribute("aria-controls","subcat-"+c.id);toggle.textContent="⌄";
-    toggle.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();const expanded=wrap.classList.toggle("is-expanded");toggle.setAttribute("aria-expanded",String(expanded));toggle.setAttribute("aria-label",expanded?(ml?"കീഴ്വിഭാഗങ്ങൾ മറയ്ക്കുക":hi?"उपश्रेणियाँ छिपाएँ":"Hide subcategories"):(ml?"കീഴ്വിഭാഗങ്ങൾ കാണിക്കുക":hi?"उपश्रेणियाँ दिखाएँ":"Show subcategories"));});
-    heading.appendChild(toggle);
-   }
-   const desc=document.createElement("small");desc.textContent=ml?"പ്രാദേശിക സേവനദാതാക്കളെ കണ്ടെത്തുക":hi?"स्थानीय सेवा प्रदाता खोजें":(c.description||"Explore local providers");
-   wrap.append(heading,desc);
-   if(children.length){
-    const list=document.createElement("div");list.className="category-subcategory-list";list.id="subcat-"+c.id;list.style.cssText="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px";
-    children.forEach(child=>{
-     const chip=document.createElement("button");chip.type="button";chip.className="subcategory-tile";
-     const visual=document.createElement("span");visual.className="subcategory-visual";
-     const rawImage=child.image_url||child.image||child.icon_url||"";
-     const rawIcon=String(child.icon||"");
-     const imageUrl=String(rawImage||((rawIcon.startsWith("https://")||rawIcon.startsWith("http://")||rawIcon.startsWith("data:image/"))?rawIcon:""));
-     if(imageUrl){const img=document.createElement("img");img.src=imageUrl;img.alt="";img.loading="lazy";img.onerror=()=>{visual.textContent="✦";};visual.appendChild(img);}
-     else if(rawIcon&&rawIcon.codePointAt(0)>255){visual.textContent=rawIcon;}
-     else {visual.innerHTML=categoryIconSvg(child);}
-     const label=document.createElement("span");label.textContent=name(child);chip.append(visual,label);
-     chip.addEventListener("click",e=>{e.stopPropagation();filter.value=c.name;$("keyword").value=name(child);render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});});
-     list.appendChild(chip);
-    });
-    wrap.appendChild(list);
-   }
-   wrap.addEventListener("click",e=>{if(e.target===wrap||e.target===icon||e.target===title||e.target===desc||e.target===heading){filter.value=c.name;$("keyword").value="";render();document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});}});
+  groups.forEach(g=>{
+   const wrap=document.createElement("button");wrap.type="button";wrap.className="category";wrap.dataset.cat=g.key;
+   const icon=document.createElement("span");icon.className="category-illustration";icon.textContent=g.icon;
+   const title=document.createElement("strong");title.textContent=g.label;
+   wrap.append(icon,title);
+   wrap.addEventListener("click",()=>{
+    filter.value=g.key;
+    $("keyword").value="";
+    render();
+    document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});
+   });
    cards.appendChild(wrap);
   });
-  const b=document.createElement("button");b.type="button";b.className="category";b.dataset.cat="all";b.innerHTML='<strong>'+all+'</strong><small>'+more+'</small>';cards.appendChild(b);
  }
 }
 window.nattukaarRenderCategoryLanguage=renderCategoryLanguage;
@@ -1683,7 +1684,7 @@ function renderMap(){
  if(!mapReady)return;
  providerMarkers.clearLayers();
  const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();
- const matching=data.filter(p=>(c==="all"||p.category===c)&&(l==="all"||p.location.toLowerCase().includes(l.toLowerCase())||(p.town||"").toLowerCase().includes(l.toLowerCase()))&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
+ const matching=data.filter(p=>(c==="all"||p.category===c||window.nattukaarGroupForProvider(p)===c)&&(l==="all"||p.location.toLowerCase().includes(l.toLowerCase())||(p.town||"").toLowerCase().includes(l.toLowerCase()))&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
  const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
  located.forEach(p=>{
    const popup=document.createElement("div");
@@ -1785,7 +1786,7 @@ function render() {
   const k = $('keyword').value.trim().toLowerCase();
 
   const list = data.filter(p =>
-    (c === 'all' || p.category === c) &&
+    (c === 'all' || p.category === c || groupForProvider(p) === c) &&
     (l === 'all' || p.location.toLowerCase().includes(l.toLowerCase()) || (p.town||'').toLowerCase().includes(l.toLowerCase())) &&
     (!k || [p.name, p.category, p.service, p.location, p.town, p.desc, p.tags].join(' ').toLowerCase().includes(k)) &&
     (!localSearchActive || (Number.isFinite(p.distanceKm) && p.distanceKm <= LOCAL_SEARCH_RADIUS_KM))
