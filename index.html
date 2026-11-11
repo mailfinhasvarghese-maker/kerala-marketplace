@@ -2611,5 +2611,62 @@ loadCategories().then(async()=>{
   requestAnimationFrame(()=>window.nattukaarRenderCategoryLanguage());
 });
 </script>
+
+<script>
+/* Rotating, language-aware examples for the main AI search input. */
+(function(){
+ const input=document.getElementById("headerSearchInput");
+ if(!input)return;
+ const examples={
+  en:[
+   {term:"Auto Rickshaw",prefix:"Try “",suffix:"” near me"},
+   {term:"Carpenter",prefix:"Try “",suffix:"” near me"},
+   {term:"Painter",prefix:"Try “",suffix:"” near me"},
+   {term:"Plumber",prefix:"Try “",suffix:"” near me"}
+  ],
+  ml:[
+   {term:"ഓട്ടോറിക്ഷ",prefix:"എനിക്ക് സമീപമുള്ള “",suffix:"” തിരയുക"},
+   {term:"മരപ്പണിക്കാരൻ",prefix:"എനിക്ക് സമീപമുള്ള “",suffix:"” തിരയുക"},
+   {term:"പെയിന്റർ",prefix:"എനിക്ക് സമീപമുള്ള “",suffix:"” തിരയുക"},
+   {term:"പ്ലംബർ",prefix:"എനിക്ക് സമീപമുള്ള “",suffix:"” തിരയുക"}
+  ],
+  hi:[
+   {term:"ऑटो रिक्शा",prefix:"मेरे पास “",suffix:"” खोजें"},
+   {term:"बढ़ई",prefix:"मेरे पास “",suffix:"” खोजें"},
+   {term:"पेंटर",prefix:"मेरे पास “",suffix:"” खोजें"},
+   {term:"प्लंबर",prefix:"मेरे पास “",suffix:"” खोजें"}
+  ]
+ };
+ let index=0;
+ let activeLanguage="en";
+ function getLanguage(){
+  const lang=(document.documentElement.lang||"en").toLowerCase();
+  return examples[lang]?lang:"en";
+ }
+ function render(){
+  if(input.value||document.activeElement===input)return;
+  activeLanguage=getLanguage();
+  const list=examples[activeLanguage];
+  const item=list[index%list.length];
+  input.placeholder=item.prefix+item.term+item.suffix;
+ }
+ function advance(){
+  if(input.value||document.activeElement===input)return;
+  index=(index+1)%4;
+  render();
+ }
+ render();
+ const rotation=setInterval(advance,2800);
+ input.addEventListener("focus",()=>{});
+ input.addEventListener("blur",render);
+ document.addEventListener("change",event=>{
+  if(event.target&&event.target.id==="languageToggle"){
+   index=0;
+   setTimeout(render,0);
+  }
+ });
+ document.documentElement.addEventListener("languagechange",()=>{index=0;render();});
+})();
+</script>
 </body>
 </html>
