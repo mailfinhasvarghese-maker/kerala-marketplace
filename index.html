@@ -1590,46 +1590,30 @@ const $ = id => document.getElementById(id);
  if(!Array.isArray(serviceCategories)||!serviceCategories.length)return;
  const ml=currentLanguage==="ml",hi=currentLanguage==="hi",filter=$('catFilter'),cards=$('categoryCards');
  const mainCategories=serviceCategories.filter(c=>!c.parent_id);
- const groups=[
-  {key:"Transport",label:ml?"ഗതാഗതം":hi?"परिवहन":"Transport",icon:"🚕",match:/transport|taxi|rental|vehicle|mobility/i},
-  {key:"Labours & Skilled Workers",label:ml?"തൊഴിലാളികളും വിദഗ്ധരും":hi?"मज़दूर और कुशल कारीगर":"Labours & Skilled Workers",icon:"🧰",match:/labou?r|worker|skilled/i},
-  {key:"Home Services",label:ml?"ഗൃഹ സേവനങ്ങൾ":hi?"घरेलू सेवाएँ":"Home Services",icon:"🏠",match:/home.*service|home.*business|household/i},
-  {key:"Events & Entertainment",label:ml?"ഇവന്റുകളും വിനോദവും":hi?"कार्यक्रम और मनोरंजन":"Events & Entertainment",icon:"🎉",match:/event|entertainment/i}
- ];
-
- const groupForProvider=p=>{
-  const value=[p.category,p.service,p.tags].filter(Boolean).join(" ");
-  if(/taxi|transport|rental|vehicle|mobility/i.test(value))return "Transport";
-  if(/labou?r|worker|skilled/i.test(value))return "Labours & Skilled Workers";
-  if(/home.*service|home.*business|plumb|electric|carpent|clean|repair/i.test(value))return "Home Services";
-  if(/event|entertainment|cater|photograph|decorat/i.test(value))return "Events & Entertainment";
-  return "";
- };
- window.nattukaarGroupForProvider=groupForProvider;
  const name=c=>ml?(c.name_ml||c.name):hi?(c.name_hi||c.name):c.name;
  const all=ml?"എല്ലാ സേവനങ്ങളും":hi?"सभी सेवाएँ":"All services";
- const more=ml?"എല്ലാ വിഭാഗങ്ങളും കാണുക":hi?"सभी श्रेणियाँ देखें":"Explore every category";
  if(filter){
   const selected=filter.value||"all";filter.innerHTML="";
   const option=document.createElement("option");option.value="all";option.textContent=all;filter.appendChild(option);
-  groups.forEach(g=>{const o=document.createElement("option");o.value=g.key;o.textContent=g.label;filter.appendChild(o);});
-  filter.value=selected;
+  mainCategories.forEach(c=>{const o=document.createElement("option");o.value=c.slug;o.textContent=name(c);filter.appendChild(o);});
+  filter.value=[...filter.options].some(o=>o.value===selected)?selected:"all";
  }
  if(cards){
   cards.innerHTML="";
-  groups.forEach(g=>{
-   const wrap=document.createElement("button");wrap.type="button";wrap.className="category";wrap.dataset.cat=g.key;
-   const icon=document.createElement("span");icon.className="category-illustration";icon.textContent=g.icon;
-   const title=document.createElement("strong");title.textContent=g.label;
+  mainCategories.forEach(c=>{
+   const wrap=document.createElement("button");wrap.type="button";wrap.className="category";wrap.dataset.cat=c.slug;
+   const icon=document.createElement("span");icon.className="category-illustration";icon.innerHTML=categoryIconSvg(c.name);
+   const title=document.createElement("strong");title.textContent=name(c);
    wrap.append(icon,title);
    wrap.addEventListener("click",()=>{
-    filter.value=g.key;
+    filter.value=c.slug;
     $("keyword").value="";
     render();
     document.querySelector("#providers")?.scrollIntoView({behavior:"smooth"});
    });
    cards.appendChild(wrap);
   });
+ }
  }
 }
 window.nattukaarRenderCategoryLanguage=renderCategoryLanguage;
@@ -1684,7 +1668,7 @@ function renderMap(){
  if(!mapReady)return;
  providerMarkers.clearLayers();
  const c=$("catFilter").value,l=$("locFilter").value,k=$("keyword").value.trim().toLowerCase();
- const matching=data.filter(p=>(c==="all"||p.category===c||window.nattukaarGroupForProvider(p)===c)&&(l==="all"||p.location.toLowerCase().includes(l.toLowerCase())||(p.town||"").toLowerCase().includes(l.toLowerCase()))&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
+ const matching=data.filter(p=>(c==="all"||p.categorySlug===c)&&(l==="all"||p.location.toLowerCase().includes(l.toLowerCase())||(p.town||"").toLowerCase().includes(l.toLowerCase()))&&(!k||[p.name,p.category,p.service,p.location,p.town,p.desc,p.tags].join(" ").toLowerCase().includes(k))&&(!localSearchActive||(Number.isFinite(p.distanceKm)&&p.distanceKm<=LOCAL_SEARCH_RADIUS_KM)));
  const located=matching.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude));
  located.forEach(p=>{
    const popup=document.createElement("div");
@@ -1882,6 +1866,7 @@ async function loadProviders() {
     images: (p.images || []).slice(0,5).map(img => ({id:Number(img.id),url:'https://kerala-marketplace-api-v2.abmg-events.workers.dev'+img.url})),
     name: p.business_name || 'Local provider',
     category,
+    categorySlug: slug,
     service: [p.category_name,p.subcategory_name].filter(Boolean).join(' · ') || 'Local service',
     location: p.district || 'Kerala',
     town: p.town || '',
