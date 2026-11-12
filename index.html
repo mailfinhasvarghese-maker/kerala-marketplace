@@ -1770,7 +1770,7 @@ function render() {
   const k = $('keyword').value.trim().toLowerCase();
 
   const list = data.filter(p =>
-    (c === 'all' || p.category === c || groupForProvider(p) === c) &&
+    (c === 'all' || p.categorySlug === c) &&
     (l === 'all' || p.location.toLowerCase().includes(l.toLowerCase()) || (p.town||'').toLowerCase().includes(l.toLowerCase())) &&
     (!k || [p.name, p.category, p.service, p.location, p.town, p.desc, p.tags].join(' ').toLowerCase().includes(k)) &&
     (!localSearchActive || (Number.isFinite(p.distanceKm) && p.distanceKm <= LOCAL_SEARCH_RADIUS_KM))
