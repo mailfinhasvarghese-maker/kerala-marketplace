@@ -1602,7 +1602,7 @@ const $ = id => document.getElementById(id);
   cards.innerHTML="";
   mainCategories.forEach(c=>{
    const wrap=document.createElement("button");wrap.type="button";wrap.className="category";wrap.dataset.cat=c.slug;
-   const icon=document.createElement("span");icon.className="category-illustration";icon.innerHTML=categoryIconSvg(c.name);
+   const icon=document.createElement("span");icon.className="category-illustration";icon.innerHTML=categoryIconSvg(c);
    const title=document.createElement("strong");title.textContent=name(c);
    wrap.append(icon,title);
    wrap.addEventListener("click",()=>{
