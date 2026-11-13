@@ -2610,12 +2610,16 @@ document.querySelectorAll('[data-mobile-nav]').forEach(function(button){
 $('year').textContent = new Date().getFullYear();
 refreshAccount();
 initProviderMap();
-loadCategories().then(async()=>{
-  // Re-render category controls after the async category and provider data have settled.
-  window.nattukaarRenderCategoryLanguage();
-  await loadProviders();
-  requestAnimationFrame(()=>window.nattukaarRenderCategoryLanguage());
-});
+// Provider listings must load independently of the category-management API.
+ // A category endpoint or category-card rendering failure must never block services.
+ loadProviders();
+ loadCategories().then(()=>{
+   try {
+     window.nattukaarRenderCategoryLanguage();
+   } catch (error) {
+     console.error('Homepage category rendering failed:', error);
+   }
+ });
 </script>
 
 <script>
