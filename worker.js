@@ -31,6 +31,7 @@ async function runSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS providers (id INTEGER PRIMARY KEY AUTOINCREMENT, business_name TEXT NOT NULL, contact_name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT, district TEXT NOT NULL, town TEXT, address TEXT, description TEXT, years_experience INTEGER NOT NULL DEFAULT 0, category_id INTEGER, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS booking_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT NOT NULL, customer_email TEXT, service_date TEXT, service_location TEXT NOT NULL, details TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS customer_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, reviewer_name TEXT NOT NULL, rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5), review_text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (provider_id) REFERENCES providers(id))").run();
+  try { await db.prepare("ALTER TABLE customer_reviews ADD COLUMN provider_reply TEXT").run(); } catch (_) {}
   await db.prepare("CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS service_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_account_id INTEGER NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT NOT NULL, category_id INTEGER, service_location TEXT NOT NULL, service_date TEXT, details TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', selected_provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(customer_account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS service_request_recipients (id INTEGER PRIMARY KEY AUTOINCREMENT, request_id INTEGER NOT NULL, provider_id INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', quote REAL, quote_note TEXT, response_at TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(request_id,provider_id), FOREIGN KEY(request_id) REFERENCES service_requests(id), FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
@@ -330,6 +331,21 @@ export default {
         }
         const p=await env.DB.prepare("SELECT CASE WHEN is_available=1 AND available_until>datetime('now') THEN 1 ELSE 0 END AS available_now,available_until FROM providers WHERE id=?").bind(account.provider_id).first();
         return respond({ok:true,available:!!p?.available_now,available_until:p?.available_until||null,activation:{standard_fee_inr:5,promotional_discount_inr:5,amount_due_inr:0},message:p?.available_now?"You are visible as Available Now for up to 30 minutes.":"Your Available Now status is off."});
+      }
+      if (path === "/api/provider/reviews" && request.method === "GET") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const result=await env.DB.prepare("SELECT id,reviewer_name,rating,review_text,provider_reply,created_at FROM customer_reviews WHERE provider_id=? AND status='published' ORDER BY created_at DESC LIMIT 100").bind(account.provider_id).all();
+        return respond({reviews:result.results||[]});
+      }
+      if (path === "/api/provider/review-reply" && request.method === "POST") {
+        const account=await getAccount(request,env.DB);
+        if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
+        const body=await request.json(), id=Number.parseInt(body.review_id,10), reply=String(body.reply||"").trim().slice(0,1000);
+        if(!Number.isInteger(id)||id<1||!reply) return respond({error:"Write a reply before saving."},400);
+        const result=await env.DB.prepare("UPDATE customer_reviews SET provider_reply=? WHERE id=? AND provider_id=? AND status='published'").bind(reply,id,account.provider_id).run();
+        if(!result.meta || result.meta.changes!==1) return respond({error:"Published review not found for this provider."},404);
+        return respond({ok:true,message:"Reply saved."});
       }
       if (path === "/api/provider/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
