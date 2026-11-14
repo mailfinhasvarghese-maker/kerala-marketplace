@@ -18,14 +18,74 @@ button.primary,.btn-primary,.nav a.active,.tab.active{background:#173C69!importa
 a,.link,.accent{color:#20B486}
 
 </style>
+
+<style id="provider-dashboard-responsive-update">
+/* Provider workspace hierarchy and responsive account navigation */
+.nav-actions{display:flex;align-items:center;gap:10px}
+.refresh-icon{width:42px;height:42px;min-width:42px;padding:0;border:1px solid var(--line);border-radius:11px}
+.refresh-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#refreshMessage{font-size:12px;color:#087b54;font-weight:700}
+.availability-panel{display:grid;grid-template-columns:minmax(160px,1fr) minmax(220px,1.15fr) minmax(180px,.8fr);align-items:center;gap:16px;margin:0 0 22px;padding:18px 20px}
+.availability-heading{min-width:0}
+.availability-title{font-size:16px}
+.availability-pricing{width:100%;max-width:360px}
+.availability-panel #availabilityToggle{width:100%;min-height:44px}
+.availability-panel .availability-notice{grid-column:1/-1}
+@media(max-width:900px){
+ .layout{grid-template-columns:1fr;gap:14px}
+ .sidebar{position:static;top:auto;padding:16px}
+ .sidebar h3{margin-bottom:3px}
+ .sidebar .account-email,.sidebar hr,.sidebar>.muted,#profileSummary{display:none}
+ .menu{display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding:2px 1px 8px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+ .menu a{flex:0 0 auto;width:auto;min-height:40px;white-space:nowrap;padding:9px 13px;border-radius:10px}
+ .availability-panel{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px}
+ .availability-panel #availabilityToggle{grid-column:1/-1}
+}
+@media(max-width:600px){
+ .wrap{padding:0 14px}
+ .main{padding:20px 0 42px}
+ .welcome{gap:12px;margin-bottom:16px}
+ .welcome h1{font-size:29px}
+ .welcome .sub{font-size:13px;line-height:1.5}
+ #jumpBookings{width:100%;min-height:42px}
+ .availability-panel{grid-template-columns:1fr;padding:15px;gap:12px;margin-bottom:16px}
+ .availability-pricing{max-width:none}
+ .availability-panel #availabilityToggle{grid-column:auto}
+ .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+ .stat{padding:10px 8px}
+ .stat span{font-size:11px}
+ .stat strong{font-size:22px}
+ .sidebar{padding:13px}
+ .menu{margin-top:9px}
+ .menu a{font-size:12px;padding:9px 11px}
+ .section-head{align-items:flex-start;flex-direction:column}
+ .section-head .btn{width:100%}
+ .details,.settings-grid{grid-template-columns:1fr}
+ .booking{padding:13px}
+ .booking-top{flex-direction:column;align-items:flex-start}
+ .contact .btn,.actions .btn{flex:1 1 100%;min-height:42px}
+ .nav{min-height:60px;flex-direction:row;align-items:center;padding-top:8px;padding-bottom:8px}
+ .nav-actions{width:auto;display:flex;gap:7px;margin-left:auto}
+ .brand{font-size:20px}
+ .brand small{font-size:8px}
+ #signOut{min-height:40px;padding:8px 11px;font-size:12px}
+}
+@media(max-width:360px){
+ .brand{font-size:18px}
+ .brand small{letter-spacing:1px}
+ .refresh-icon{width:40px;height:40px;min-width:40px}
+ #signOut{padding:8px;font-size:11px}
+}
+</style>
 </head>
 <body>
-<header class="top"><div class="wrap nav"><a class="brand" href="/">Nattukaar<small>KERALA LOCAL MARKETPLACE</small></a><div class="nav-actions"><section class="panel" id="availabilityPanel" aria-label="Available Now activation" style="margin:0;box-shadow:none"><div class="availability-heading"><div><strong class="availability-title">🚕 Available Now</strong><div id="availabilityState" aria-live="polite" style="font-size:11px;font-weight:700;color:#087b3c;margin-top:3px">Checking…</div><small id="availabilityTimer" class="muted" style="font-size:11px">30-minute auto-off</small></div></div><div class="availability-pricing" aria-label="Activation price breakdown"><div class="availability-price-row"><span>Activation fee</span><strong>₹5.00</strong></div><div class="availability-price-row availability-discount"><span>Promotional discount</span><strong>−₹5.00</strong></div><div class="availability-price-row total"><span>Amount payable</span><strong>₹0.00</strong></div></div><div id="availabilityNotice" class="availability-notice" role="status" aria-live="polite"></div><button class="btn primary" id="availabilityToggle" type="button">Turn Available ON</button></section><a class="btn outline" href="/">Use Nearestor as customer</a><button id="refreshBtn" class="btn soft">↻ Refresh all</button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
+<header class="top"><div class="wrap nav"><a class="brand" href="/">Nearestor<small>LOCAL SERVICES MARKETPLACE</small></a><div class="nav-actions"><span id="refreshMessage" role="status" aria-live="polite"></span><button id="refreshBtn" class="btn soft refresh-icon" type="button" aria-label="Refresh dashboard" title="Refresh dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg></button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
 <main class="wrap main">
-<section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section>
+<section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details, and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section>
+<section class="panel availability-panel" id="availabilityPanel" aria-label="Available Now activation"><div class="availability-heading"><div><strong class="availability-title">🚕 Available Now</strong><div id="availabilityState" aria-live="polite" style="font-size:12px;font-weight:700;color:#087b3c;margin-top:3px">Checking…</div><small id="availabilityTimer" class="muted" style="font-size:12px">30-minute auto-off</small></div></div><div class="availability-pricing" aria-label="Activation price breakdown"><div class="availability-price-row"><span>Activation fee</span><strong>₹5.00</strong></div><div class="availability-price-row availability-discount"><span>Promotional discount</span><strong>−₹5.00</strong></div><div class="availability-price-row total"><span>Amount payable</span><strong>₹0.00</strong></div></div><div id="availabilityNotice" class="availability-notice" role="status" aria-live="polite"></div><button class="btn primary" id="availabilityToggle" type="button">Turn Available ON</button></section>
 <div id="pageError" hidden class="error"></div>
 <div class="layout">
-<aside class="panel sidebar"><h3>Account settings</h3><p class="account-email" id="accountEmail">Loading account…</p><div class="menu"><a class="btn soft" href="#overview">▦ Overview</a><a class="btn outline" href="#instantRequests">⚡ Instant requests</a><a class="btn outline" href="#bookings">📋 Customer bookings</a><a class="btn outline" href="#profile">👤 Public profile</a><a class="btn outline" href="#settings">⚙ Account details</a><a class="btn outline" href="/">↗ View marketplace</a></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><p class="muted">Signed in as a provider. Keep your contact details available so customers can coordinate service requests.</p><div id="profileSummary" class="muted">Loading provider account details…</div></aside>
+<aside class="panel sidebar"><h3>Account settings</h3><p class="account-email" id="accountEmail">Loading account…</p><div class="menu"><a class="btn soft active" href="#overview">▦ Overview</a><a class="btn outline" href="#instantRequests">⚡ Instant requests</a><a class="btn outline" href="#bookings">📋 Customer bookings</a><a class="btn outline" href="#profile">👤 Public profile</a><a class="btn outline" href="#settings">⚙ Account details</a><a class="btn outline" href="/">↗ View marketplace</a></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><p class="muted">Signed in as a provider. Keep your contact details available so customers can coordinate service requests.</p><div id="profileSummary" class="muted">Loading provider account details…</div></aside>
 <div id="overview">
 <section class="stats"><div class="stat"><span>All requests</span><strong id="totalCount">—</strong></div><div class="stat"><span>Needs response</span><strong id="pendingCount">—</strong></div><div class="stat"><span>Accepted / active</span><strong id="activeCount">—</strong></div></section>
 <section class="panel" id="instantRequests" style="margin-bottom:18px"><div class="section-head"><div><h2>Instant service requests</h2><p>Requests sent to your service category and area. Respond with interest and an optional quote.</p></div><button class="btn soft" type="button" id="refreshInstantRequests">↻ Refresh</button></div><div id="instantRequestList" class="loading">Loading instant requests…</div></section>
@@ -282,8 +342,9 @@ function bindActions(){
  document.querySelectorAll('form[data-quote]').forEach(form=>form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{await jsonFetch('/api/provider/booking-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({booking_request_id:Number(form.dataset.quote),quote:Number(form.elements.quote.value),note:form.elements.note.value.trim()})});alert('Payment offer saved. The customer can view it in My bookings.');await loadBookings();}catch(err){alert(err.message);btn.disabled=false;}}));
  document.querySelectorAll('[data-status]').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;try{await jsonFetch('/api/provider/booking-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({booking_request_id:Number(btn.dataset.id),status:btn.dataset.status})});await loadBookings();}catch(err){alert(err.message);btn.disabled=false;}}));
 }
-async function refreshDashboard(){const btn=$('refreshBtn');btn.disabled=true;btn.textContent='Refreshing…';const results=await Promise.allSettled([loadProfile(),loadProviderPhotos(),loadBookings(),loadInstantRequests()]);const failed=results.filter(x=>x.status==='rejected').length;btn.disabled=false;btn.textContent='↻ Refresh all';$('lastUpdated').textContent=failed?'Some sections could not refresh':'All sections updated just now';}
-$('refreshBtn').addEventListener('click',refreshDashboard);$('jumpBookings').addEventListener('click',()=>$('bookings').scrollIntoView({behavior:'smooth'}));
+async function refreshDashboard(){const btn=$('refreshBtn'),message=$('refreshMessage');btn.disabled=true;message.textContent='';await Promise.allSettled([loadAvailability(),loadProfile(),loadProviderPhotos(),loadBookings(),loadInstantRequests()]);btn.disabled=false;message.textContent='Refreshed';$('lastUpdated').textContent='Updated just now';}
+$('refreshBtn').addEventListener('click',refreshDashboard);
+document.querySelectorAll('.menu a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{document.querySelectorAll('.menu a[href^="#"]').forEach(item=>item.classList.toggle('active',item===link));}));$('jumpBookings').addEventListener('click',()=>$('bookings').scrollIntoView({behavior:'smooth'}));
 $('signOut').addEventListener('click',async()=>{try{await jsonFetch('/api/auth/logout',{method:'POST'});}catch(e){}localStorage.removeItem('nattukaar_token');location.href='/';});
 init();
 </script><script src="/nattukaar-i18n.js"></script>
