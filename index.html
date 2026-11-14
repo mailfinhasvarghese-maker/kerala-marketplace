@@ -1908,6 +1908,13 @@ async function loadProviders() {
 
 function openProfile(p) {
   const phone = p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + '</a>' : 'Not provided';
+  const phoneDigits = String(p.phone || '').replace(/[^0-9]/g, '');
+  const whatsappNumber = phoneDigits.length === 10 ? '91' + phoneDigits : phoneDigits.length === 11 && phoneDigits.startsWith('0') ? '91' + phoneDigits.slice(1) : phoneDigits;
+  const whatsappMessage = encodeURIComponent('Hello ' + (p.name || 'there') + ', I found your profile on Nearestor. I would like to enquire about your services.');
+  const directContactButtons = p.phone
+    ? '<a class="btn contact-action contact-call" href="tel:' + esc(p.phone) + '">Call ' + esc(p.name) + ' Directly</a>' +
+      '<a class="btn contact-action contact-whatsapp" href="https://wa.me/' + esc(whatsappNumber) + '?text=' + whatsappMessage + '" target="_blank" rel="noopener noreferrer">WhatsApp ' + esc(p.name) + '</a>'
+    : '';
   const email = p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a>' : 'Not provided';
   const place = [p.town, p.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'Kerala';
   const address = p.address ? esc(p.address) : 'Not provided';
