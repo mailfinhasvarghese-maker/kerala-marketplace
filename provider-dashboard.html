@@ -17,6 +17,59 @@ body{color:#173C69}
 button.primary,.btn-primary,.nav a.active,.tab.active{background:#173C69!important;color:#fff!important}
 a,.link,.accent{color:#20B486}
 
+
+/* Provider dashboard responsive workspace layout */
+.nav-actions{display:flex;align-items:center;gap:10px}
+.refresh-icon-btn{width:42px;height:42px;min-width:42px;padding:0;border-radius:12px}
+.refresh-icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.refresh-message{font-size:12px;font-weight:700;color:#087b54;min-width:0}
+.availability-workspace{display:flex;flex-direction:column;gap:10px;margin:0 0 22px!important;border:1px solid #cfe8dc!important;box-shadow:0 5px 18px #173c6908!important}
+.availability-workspace .availability-heading{align-items:center}
+.availability-workspace .availability-title{font-size:16px}
+.availability-workspace .availability-pricing{max-width:420px;width:100%;font-size:13px;padding:10px 12px}
+.availability-workspace #availabilityToggle{align-self:flex-start;min-width:190px;min-height:42px}
+.availability-workspace .availability-notice{max-width:420px}
+.sidebar .menu{display:grid}
+@media(max-width:900px){
+ .layout{grid-template-columns:1fr;gap:14px}
+ .sidebar{position:static;padding:15px}
+ .sidebar>hr,.sidebar>p.muted,.sidebar>#profileSummary{display:none}
+ .sidebar h3{margin-bottom:3px}
+ .sidebar .menu{display:flex;gap:8px;overflow-x:auto;padding:2px 1px 8px;margin-top:12px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+ .sidebar .menu a{flex:0 0 auto;width:auto;min-height:40px;white-space:nowrap;padding:9px 13px;border-radius:999px}
+ .sidebar .account-email{margin:0}
+ .availability-workspace{margin-bottom:16px!important}
+ .availability-workspace #availabilityToggle{width:100%;align-self:stretch}
+ .welcome{margin-bottom:16px}
+}
+@media(max-width:600px){
+ .main{padding-top:20px}
+ .welcome h1{font-size:29px}
+ .welcome .sub{font-size:13px;max-width:100%}
+ .welcome #jumpBookings{width:100%}
+ .availability-workspace{padding:15px!important;gap:9px}
+ .availability-workspace .availability-pricing{max-width:none}
+ .availability-workspace .availability-title{font-size:15px}
+ .availability-workspace .availability-notice{max-width:none}
+ .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+ .stat span{font-size:10px}
+ .stat strong{font-size:21px}
+ .nav-actions{width:auto;display:flex;flex:0 0 auto;margin-left:auto}
+ .nav{min-height:64px;position:relative}
+ .nav-actions #signOut{min-height:40px;padding:8px 11px;font-size:12px}
+ .refresh-message{position:absolute;right:110px;top:50%;transform:translateY(-50%);white-space:nowrap}
+ .details,.settings-grid{grid-template-columns:1fr}
+ .section-head{align-items:flex-start;flex-wrap:wrap}
+ .section-head>button{width:100%}
+ .actions .btn,.contact .btn{flex:1 1 auto}
+}
+@media(min-width:601px) and (max-width:900px){
+ .nav-actions{width:auto;display:flex;flex-wrap:nowrap;margin-left:auto}
+ .sidebar .menu a{font-size:12px}
+ .availability-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,1fr);align-items:center}
+ .availability-workspace .availability-pricing{grid-column:2;grid-row:1 / span 2}
+ .availability-workspace #availabilityToggle,.availability-workspace .availability-notice{grid-column:1;max-width:100%}
+}
 </style>
 </head>
 <body>
