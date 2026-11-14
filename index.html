@@ -99,6 +99,7 @@ h1 em{font-style:normal;color:var(--g)}
 .profile-detail small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
 .profile-detail a{color:var(--g);font-weight:700;text-decoration:none}
 .profile-footer{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.profile-contact-actions{display:flex;gap:10px;flex-wrap:wrap;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;margin:0 0 14px;font-family:inherit}.profile-contact-actions a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-family:inherit;font-size:13px;font-weight:650;line-height:1.35;white-space:normal}.profile-contact-actions a svg{width:18px;height:18px;flex:0 0 18px}.profile-contact-actions .contact-call{background:#173C69;border-color:#173C69;color:#fff}.profile-contact-actions .contact-whatsapp{background:#20B486;border-color:#20B486;color:#fff}@media(max-width:480px){.profile-contact-actions{display:grid;grid-template-columns:1fr}.profile-contact-actions a{width:100%}}
 .review-list{border-top:1px solid var(--line);padding-top:16px;margin-top:10px}.review-item{padding:12px 0;border-bottom:1px solid var(--line)}.review-item:last-child{border-bottom:0}.review-item strong{font-size:12px}.review-item p{margin:5px 0 0}.review-form{background:#F7FAF9;border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:18px}.review-form h3{margin:0 0 10px}.review-form .field{margin-bottom:10px}.stars{display:flex;gap:7px}.stars label{display:flex;align-items:center;gap:4px;font-size:12px}
 @media(max-width:640px){.profile-modal{padding:19px}.profile-details{grid-template-columns:1fr}}
 .empty{padding:35px;text-align:center;border:1px dashed #c8d9ce;border-radius:15px;color:var(--muted);grid-column:1/-1}
@@ -1912,8 +1913,10 @@ function openProfile(p) {
   const whatsappNumber = phoneDigits.length === 10 ? '91' + phoneDigits : phoneDigits.length === 11 && phoneDigits.startsWith('0') ? '91' + phoneDigits.slice(1) : phoneDigits;
   const whatsappMessage = encodeURIComponent('Hello ' + (p.name || 'there') + ', I found your profile on Nearestor. I would like to enquire about your services.');
   const directContactButtons = p.phone
-    ? '<a class="btn contact-action contact-call" href="tel:' + esc(p.phone) + '">Call ' + esc(p.name) + ' Directly</a>' +
-      '<a class="btn contact-action contact-whatsapp" href="https://wa.me/' + esc(whatsappNumber) + '?text=' + whatsappMessage + '" target="_blank" rel="noopener noreferrer">WhatsApp ' + esc(p.name) + '</a>'
+    ? '<div class="profile-contact-actions" aria-label="Contact provider">' +
+      '<a class="contact-call" href="tel:' + esc(p.phone) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.62a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.84.29 1.72.5 2.62.62A2 2 0 0 1 22 16.92z"/></svg>Call ' + esc(p.name) + ' Directly</a>' +
+      '<a class="contact-whatsapp" href="https://wa.me/' + esc(whatsappNumber) + '?text=' + whatsappMessage + '" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16.04 3C8.87 3 3.04 8.79 3.04 15.92c0 2.28.6 4.51 1.75 6.48L3 29l6.78-1.77a13.1 13.1 0 0 0 6.26 1.59h.01c7.17 0 13-5.8 13-12.93A12.85 12.85 0 0 0 25.2 6.7 12.97 12.97 0 0 0 16.04 3zm.01 23.62h-.01a10.8 10.8 0 0 1-5.5-1.5l-.4-.24-4.02 1.05 1.07-3.9-.26-.4a10.64 10.64 0 0 1-1.65-5.7c0-5.9 4.83-10.7 10.77-10.7 2.88 0 5.58 1.12 7.62 3.15a10.6 10.6 0 0 1 3.15 7.57c0 5.9-4.83 10.67-10.77 10.67zm5.9-8c-.32-.16-1.9-.93-2.2-1.04-.3-.1-.51-.16-.72.16-.21.31-.83 1.04-1.02 1.25-.19.21-.38.23-.7.08-.32-.16-1.35-.5-2.57-1.58-.95-.84-1.59-1.88-1.78-2.2-.19-.31-.02-.48.14-.64.14-.14.32-.37.48-.55.16-.18.21-.31.32-.52.1-.21.05-.39-.03-.55-.08-.16-.72-1.72-.99-2.36-.26-.62-.53-.54-.72-.55h-.61c-.21 0-.55.08-.84.39-.29.31-1.1 1.07-1.1 2.61s1.13 3.03 1.29 3.24c.16.21 2.22 3.37 5.37 4.72.75.32 1.33.51 1.79.65.75.24 1.43.2 1.97.12.6-.09 1.9-.77 2.17-1.51.27-.74.27-1.38.19-1.51-.08-.13-.29-.21-.61-.37z"/></svg>WhatsApp ' + esc(p.name) + '</a>' +
+      '</div>'
     : '';
   const email = p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a>' : 'Not provided';
   const place = [p.town, p.location].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'Kerala';
@@ -1926,7 +1929,7 @@ function openProfile(p) {
     </div>
     <div class="profile-content">
       ${p.images && p.images.length ? `<div class="profile-gallery">${p.images.map((img,i)=>`<img src="${img.url}" alt="${esc(p.name)} photo ${i+1}" data-profile-image="${i}">`).join("")}</div>` : ""}
-      ${p.availableNow ? '<p><span class="available-live">LIVE · AVAILABLE NOW</span> This provider is ready to accept a new request.</p>' : ''}<div class="profile-details">
+      ${p.availableNow ? '<p><span class="available-live">LIVE · AVAILABLE NOW</span> This provider is ready to accept a new request.</p>' : ''}${directContactButtons}<div class="profile-details">
         <div class="profile-detail"><small>EXPERIENCE</small><strong>${p.years} year${p.years === 1 ? '' : 's'}</strong></div>
         <div class="profile-detail"><small>CUSTOMER RATING</small><strong>${rating}</strong></div>
         <div class="profile-detail"><small>CONTACT PHONE</small><strong>${phone}</strong></div>
@@ -1943,7 +1946,6 @@ function openProfile(p) {
       <div class="review-form"><h3>Rate a completed booking</h3><p style="font-size:11px;color:var(--muted)">Ratings are available only to signed-in customers after a booking is marked completed. Open My account to rate an eligible booking.</p><button class="btn outline" type="button" id="profileMyBookings">View my bookings</button></div>
     </div>
     <div class="profile-footer">
-      ${directContactButtons}
       <button class="btn outline" id="profileDismiss">Close</button>
       <button class="btn primary" id="profileBook">Request booking →</button>
     </div>`;
