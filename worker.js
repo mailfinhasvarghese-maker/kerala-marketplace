@@ -39,6 +39,8 @@ async function runSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS provider_images (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, object_key TEXT NOT NULL UNIQUE, content_type TEXT NOT NULL DEFAULT 'image/jpeg', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS provider_availability_activations (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, standard_fee_inr INTEGER NOT NULL DEFAULT 5, promotional_discount_inr INTEGER NOT NULL DEFAULT 5, amount_paid_inr INTEGER NOT NULL DEFAULT 0, promotion_code TEXT NOT NULL DEFAULT 'LAUNCH_PROMO', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_availability_activations_provider ON provider_availability_activations(provider_id, created_at)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
   const additions = {providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"],["is_available","INTEGER NOT NULL DEFAULT 0"],["available_until","TEXT"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
@@ -312,15 +314,22 @@ export default {
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
         const body=await request.json(), enabled=body.available===true;
         if(enabled){
-          const pending=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=? AND status='pending'").bind(account.provider_id).first();
-          const active=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=? AND status='accepted'").bind(account.provider_id).first();
-          if(Number(pending?.total||0)>0 || Number(active?.total||0)>0) return respond({error:"You have a pending or active booking. Update its status before going Available Now."},409);
-          await env.DB.prepare("UPDATE providers SET is_available=1,available_until=datetime('now','+30 minutes') WHERE id=? AND status='active'").bind(account.provider_id).run();
+          const provider=await env.DB.prepare("SELECT id,status,is_available,available_until FROM providers WHERE id=?").bind(account.provider_id).first();
+          if(!provider || provider.status!=="active") return respond({error:"Your provider profile must be active before using Available Now."},403);
+          const alreadyAvailable=Number(provider.is_available)===1 && provider.available_until && provider.available_until>new Date().toISOString().replace("T"," ").slice(0,19);
+          if(!alreadyAvailable){
+            const pending=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=? AND status='pending'").bind(account.provider_id).first();
+            const active=await env.DB.prepare("SELECT COUNT(*) AS total FROM booking_requests WHERE provider_id=? AND status='accepted'").bind(account.provider_id).first();
+            if(Number(pending?.total||0)>0 || Number(active?.total||0)>0) return respond({error:"You have a pending or active booking. Update its status before going Available Now."},409);
+            const updated=await env.DB.prepare("UPDATE providers SET is_available=1,available_until=datetime('now','+30 minutes') WHERE id=? AND status='active'").bind(account.provider_id).run();
+            if(!updated.meta?.changes) return respond({error:"Your provider profile is not active. Available Now could not be enabled."},403);
+            await env.DB.prepare("INSERT INTO provider_availability_activations (provider_id,standard_fee_inr,promotional_discount_inr,amount_paid_inr,promotion_code) VALUES (?,5,5,0,'LAUNCH_PROMO')").bind(account.provider_id).run();
+          }
         }else{
           await env.DB.prepare("UPDATE providers SET is_available=0,available_until=NULL WHERE id=?").bind(account.provider_id).run();
         }
         const p=await env.DB.prepare("SELECT CASE WHEN is_available=1 AND available_until>datetime('now') THEN 1 ELSE 0 END AS available_now,available_until FROM providers WHERE id=?").bind(account.provider_id).first();
-        return respond({ok:true,available:!!p?.available_now,available_until:p?.available_until||null,message:p?.available_now?"You are visible as Available Now for up to 30 minutes.":"Your Available Now status is off."});
+        return respond({ok:true,available:!!p?.available_now,available_until:p?.available_until||null,activation:{standard_fee_inr:5,promotional_discount_inr:5,amount_due_inr:0},message:p?.available_now?"You are visible as Available Now for up to 30 minutes.":"Your Available Now status is off."});
       }
       if (path === "/api/provider/bookings" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
