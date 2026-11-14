@@ -1908,7 +1908,7 @@ async function loadProviders() {
 
 function openProfile(p) {
   const phone = p.phone ? '<a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + '</a>' : 'Not provided';
-  const phoneDigits = String(p.phone || '').replace(/\\D/g, '');
+  const phoneDigits = String(p.phone || '').replace(/[^0-9]/g, '');
   const whatsappNumber = phoneDigits.length === 10 ? '91' + phoneDigits : phoneDigits.length === 11 && phoneDigits.startsWith('0') ? '91' + phoneDigits.slice(1) : phoneDigits;
   const whatsappMessage = encodeURIComponent('Hello ' + (p.name || 'there') + ', I found your profile on Nearestor. I would like to enquire about your services.');
   const directContactButtons = p.phone
