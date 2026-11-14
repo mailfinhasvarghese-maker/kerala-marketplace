@@ -20,7 +20,7 @@ a,.link,.accent{color:#20B486}
 </style>
 </head>
 <body>
-<header class="top"><div class="wrap nav"><a class="brand" href="/">Nattukaar<small>KERALA LOCAL MARKETPLACE</small></a><div class="nav-actions"><section class="panel" id="availabilityPanel" style="margin:0;padding:7px 10px;border:1px solid #b9e6cb;background:#f2fff6;box-shadow:none;display:flex;align-items:center;gap:10px"><div style="min-width:125px"><strong style="font-size:13px">🚕 Available Now</strong><div id="availabilityState" aria-live="polite" style="font-size:10px;font-weight:700;color:#087b3c">Checking…</div><small id="availabilityTimer" class="muted" style="font-size:10px">30-minute auto-off</small></div><button class="btn primary" id="availabilityToggle" type="button" style="white-space:nowrap">Turn ON</button></section><a class="btn outline" href="/">Use Nearestor as customer</a><button id="refreshBtn" class="btn soft">↻ Refresh all</button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
+<header class="top"><div class="wrap nav"><a class="brand" href="/">Nattukaar<small>KERALA LOCAL MARKETPLACE</small></a><div class="nav-actions"><section class="panel" id="availabilityPanel" style="margin:0;padding:7px 10px;border:1px solid #b9e6cb;background:#f2fff6;box-shadow:none;display:flex;align-items:center;gap:10px"><div style="min-width:125px"><strong style="font-size:13px">🚕 Available Now</strong><div id="availabilityState" aria-live="polite" style="font-size:10px;font-weight:700;color:#087b3c">Checking…</div><small id="availabilityTimer" class="muted" style="font-size:10px">30-minute auto-off</small><small id="availabilityPricing" class="muted" style="display:block;font-size:10px;margin-top:4px">Activation ₹5 · Discount −₹5 · Payable ₹0</small></div><button class="btn primary" id="availabilityToggle" type="button" style="white-space:nowrap">Turn ON</button></section><a class="btn outline" href="/">Use Nearestor as customer</a><button id="refreshBtn" class="btn soft">↻ Refresh all</button><button id="signOut" class="btn outline">Sign out</button></div></div></header>
 <main class="wrap main">
 <section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section>
 <div id="pageError" hidden class="error"></div>
@@ -84,8 +84,11 @@ function renderAvailability(on,until){
 }
 $('availabilityToggle').addEventListener('click',async()=>{
  const btn=$('availabilityToggle'),turnOn=btn.textContent.includes('ON');btn.disabled=true;
- try{const d=await jsonFetch('/api/provider/availability',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({available:turnOn})});renderAvailability(d.available,d.available_until);}
- catch(e){alert(e.message);await loadAvailability().catch(()=>{});}finally{btn.disabled=false;}
+ try{
+  if(turnOn&&!window.confirm('Activation fee: ₹5\\nPromotional discount: −₹5\\nAmount payable: ₹0\\n\\nActivate Available Now?'))return;
+  const d=await jsonFetch('/api/provider/availability',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({available:turnOn})});
+  renderAvailability(d.available,d.available_until);
+ }catch(e){alert(e.message);await loadAvailability().catch(()=>{});}finally{btn.disabled=false;}
 });
 async function loadServiceCategories(){
  const response=await fetch(API+'/api/categories');const data=await response.json();if(!response.ok)throw Error(data.error||'Could not load service categories.');
