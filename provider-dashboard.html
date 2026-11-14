@@ -70,6 +70,15 @@ a,.link,.accent{color:#20B486}
  .availability-workspace .availability-pricing{grid-column:2;grid-row:1 / span 2}
  .availability-workspace #availabilityToggle,.availability-workspace .availability-notice{grid-column:1;max-width:100%}
 }
+
+.provider-bottom-nav{display:none}
+.dashboard-section[hidden],#overview[hidden],#profile[hidden],#settings[hidden]{display:none!important}
+#overview{display:contents}
+#instantRequests,#bookings,#bookingHistory,#providerReviews,#profile,#settings{margin-top:0!important;margin-bottom:16px}
+.provider-bottom-nav a,.provider-bottom-nav button{appearance:none;border:0;background:transparent;color:#64748b;text-decoration:none;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;cursor:pointer;border-radius:12px}
+.provider-bottom-nav svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.provider-bottom-nav .active{color:#173C69}
+@media(max-width:900px){body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}.provider-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:100;display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:7px 8px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #dce5ee;box-shadow:0 -5px 22px rgba(41,35,51,.09)}}
 </style>
 </head>
 <body>
@@ -83,6 +92,8 @@ a,.link,.accent{color:#20B486}
 <section class="stats"><div class="stat"><span>All requests</span><strong id="totalCount">—</strong></div><div class="stat"><span>Needs response</span><strong id="pendingCount">—</strong></div><div class="stat"><span>Accepted / active</span><strong id="activeCount">—</strong></div></section>
 <section class="panel" id="instantRequests" style="margin-bottom:18px"><div class="section-head"><div><h2>Instant service requests</h2><p>Requests sent to your service category and area. Respond with interest and an optional quote.</p></div><button class="btn soft" type="button" id="refreshInstantRequests">↻ Refresh</button></div><div id="instantRequestList" class="loading">Loading instant requests…</div></section>
 <section class="panel" id="bookings"><div class="section-head"><div><h2>Customer bookings</h2><p>Booking details and next actions appear below.</p></div><span class="eyebrow" id="lastUpdated"></span></div><div id="bookingList" class="loading">Loading bookings…</div></section>
+<section class="panel" id="bookingHistory" hidden><div class="section-head"><div><h2>Booking history</h2><p>Completed and declined customer bookings.</p></div></div><div id="bookingHistoryList" class="loading">Loading booking history…</div></section>
+<section class="panel" id="providerReviews" hidden><div class="section-head"><div><h2>Reviews</h2><p>Published customer reviews. You can reply to each review.</p></div><button class="btn soft" type="button" id="refreshProviderReviews">↻ Refresh</button></div><div id="providerReviewList" class="loading">Loading reviews…</div></section>
 <section class="panel" id="profile" style="margin-top:18px"><div class="section-head"><div><h2>Public provider profile</h2><p>Edit your service details and map location. Active profiles update on the public marketplace after saving.</p></div><button class="btn soft" type="button" id="profileGps">Use device GPS</button></div><form id="profileForm"><div class="settings-grid"><div class="field"><label for="pfBusiness">Business / service name *</label><input id="pfBusiness" name="business_name" required maxlength="160"></div><div class="field"><label for="pfContact">Contact person *</label><input id="pfContact" name="contact_name" required maxlength="100"></div><div class="field"><label for="pfPhone">Phone *</label><input id="pfPhone" name="phone" required maxlength="60"></div><div class="field"><label for="pfEmail">Public contact email</label><input id="pfEmail" name="email" type="email" maxlength="200"></div><div class="field"><label for="pfCategory">Main service category *</label><select id="pfCategory" name="category" required><option value="">Choose main category</option></select></div><div class="field"><label for="pfSubcategory">Service subcategory *</label><select id="pfSubcategory" name="subcategory" required disabled><option value="">Choose main category first</option></select></div><div class="field"><label for="pfDistrict">District *</label><input id="pfDistrict" name="district" required maxlength="100" placeholder="e.g. Ernakulam"></div><div class="field" style="position:relative"><label for="pfTown">Town / locality</label><input id="pfTown" name="town" maxlength="120" placeholder="Start typing a town or locality" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="pfTownSuggestions"><div id="pfTownSuggestions" role="listbox" style="display:none;position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px #18231d1a;max-height:240px;overflow:auto"></div><small class="muted">Choose a place from the map search suggestions to set your location and map pin.</small></div><div class="field"><label for="pfYears">Years of experience</label><input id="pfYears" name="years_experience" type="number" min="0" max="80" value="0"></div><div class="field" style="grid-column:1/-1"><label for="pfAddress">Full service address / landmark</label><input id="pfAddress" name="address" maxlength="300" placeholder="House, street, town or landmark"></div><div class="field" style="grid-column:1/-1"><label for="pfDescription">Services and description</label><textarea id="pfDescription" name="description" rows="3" maxlength="2000"></textarea></div><div class="field"><label for="pfLatitude">Map latitude</label><input id="pfLatitude" name="latitude" type="number" step="any" min="-90" max="90" placeholder="Use GPS or enter latitude"></div><div class="field"><label for="pfLongitude">Map longitude</label><input id="pfLongitude" name="longitude" type="number" step="any" min="-180" max="180" placeholder="Use GPS or enter longitude"></div></div><div class="field" style="grid-column:1/-1"><label>Choose your service location on the map</label><div id="providerPinMap" class="provider-pin-map" aria-label="Click map to choose provider location"></div><p class="muted">Click the map to place or move your pin, or use device GPS. You can zoom and drag the map.</p></div><p class="muted" id="profileLocationNote">Set the map pin at the place where your service is based. Customers can use this to find your service. Your device may ask permission for location access.</p><div class="actions"><button class="btn primary" id="saveProfile" type="submit">Save provider details</button><button class="btn outline" type="button" id="clearProfilePin">Clear map pin</button></div><p class="muted" id="profileSaveStatus" aria-live="polite"></p></form>
 <div class="photo-manager" style="border-top:1px solid var(--line);margin-top:22px;padding-top:20px">
   <h3>Service photos</h3>
@@ -94,7 +105,12 @@ a,.link,.accent{color:#20B486}
 </div>
 </section>
 <section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account access</label><p>Customer and provider access use this same login.</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div></section>
-</div></div></main><footer><div class="wrap">Nattukaar · Kerala Local Marketplace</div></footer>
+</div></div></main><nav class="provider-bottom-nav" aria-label="Main navigation">
+ <a href="/" data-provider-nav="home" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
+ <a href="/#categories" data-provider-nav="categories" aria-label="Categories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Categories</span></a>
+ <button type="button" data-provider-nav="account" aria-label="Accounts"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Accounts</span></button>
+ <button type="button" data-provider-nav="orders" aria-label="Orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-3-6 3z"/><path d="M9 8h6M9 12h6"/></svg><span>Orders</span></button>
+</nav><footer><div class="wrap">Nattukaar · Kerala Local Marketplace</div></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const API='https://kerala-marketplace-api-v2.abmg-events.workers.dev';
@@ -117,6 +133,7 @@ async function init(){
   $('settingName').textContent=name;$('settingEmail').textContent=account.email;
   await loadServiceCategories();
   await Promise.allSettled([loadProfile(),loadProviderPhotos(),loadBookings(),loadInstantRequests(),loadAvailability()]);
+  showDashboardView('instantRequests');
  }catch(e){showError(e.message);if(/sign in/i.test(e.message)){localStorage.removeItem('nattukaar_token');location.href='/';}}
 }
 let providerServiceCategories=[];
@@ -298,9 +315,36 @@ async function loadInstantRequests(){
  }catch(e){box.className='error';box.textContent=e.message;}
 }
 $('refreshInstantRequests')?.addEventListener('click',async()=>{const btn=$('refreshInstantRequests');btn.disabled=true;try{await loadInstantRequests();}finally{btn.disabled=false;}});
+
+function showDashboardView(view){
+ const ids=['instantRequests','bookings','bookingHistory','providerReviews','profile','settings'];
+ ids.forEach(id=>{const el=$(id);if(el)el.hidden=true;});
+ const stats=$('overview')?.querySelector('.stats');if(stats)stats.hidden=true;
+ if(view==='accounts'){$('profile').hidden=false;$('settings').hidden=false;}
+ else if(view==='orders'){$('bookings').hidden=false;}
+ else {const el=$(view);if(el)el.hidden=false;}
+ document.querySelectorAll('[data-provider-nav]').forEach(el=>el.classList.toggle('active',el.dataset.providerNav===view));
+ if(view==='bookingHistory')renderBookingHistory();
+ if(view==='reviews')loadProviderReviews();
+}
+function renderBookingHistory(){
+ const rows=bookings.filter(b=>['completed','rejected','cancelled','declined'].includes(String(b.status||'').toLowerCase()));
+ const box=$('bookingHistoryList');if(!rows.length){box.className='empty';box.innerHTML='<strong>No booking history yet</strong><p>Completed or declined bookings will appear here.</p>';return;}
+ box.className='';box.innerHTML=rows.map(b=>'<article class="booking"><div class="booking-top"><div><div class="eyebrow">Booking #'+esc(b.id)+'</div><h3>'+esc(b.customer_name||'Customer request')+'</h3></div><span class="status">'+esc(b.status)+'</span></div><p class="muted">'+esc(b.service_date||'Date not specified')+' · '+esc(b.service_location||'Location not provided')+'</p><p>'+esc(b.details||'')+'</p></article>').join('');
+}
+async function loadProviderReviews(){
+ const box=$('providerReviewList');box.className='loading';box.textContent='Loading reviews…';
+ try{const d=await jsonFetch('/api/provider/reviews');const rows=d.reviews||[];if(!rows.length){box.className='empty';box.innerHTML='<strong>No published reviews yet</strong><p>Customer reviews will appear here after moderation.</p>';return;}
+ box.className='';box.innerHTML=rows.map(r=>'<article class="booking"><div class="booking-top"><div><h3>'+esc(r.reviewer_name)+'</h3><span class="eyebrow">'+('★'.repeat(Number(r.rating)||0))+'</span></div><small class="muted">'+esc(r.created_at||'')+'</small></div><p>'+esc(r.review_text)+'</p><form class="provider-review-reply" data-review="'+Number(r.id)+'"><div class="field"><label>Reply to this review</label><textarea name="reply" rows="2" maxlength="1000" required placeholder="Write a professional response">'+esc(r.provider_reply||'')+'</textarea></div><button class="btn primary" type="submit">Save reply</button><span class="muted" aria-live="polite"></span></form></article>').join('');
+ box.querySelectorAll('.provider-review-reply').forEach(form=>form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button'),status=form.querySelector('span');btn.disabled=true;try{const result=await jsonFetch('/api/provider/review-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({review_id:Number(form.dataset.review),reply:form.elements.reply.value})});status.textContent=result.message||'Reply saved.';}catch(err){status.textContent=err.message;}finally{btn.disabled=false;}}));
+ }catch(e){box.className='error';box.textContent=e.message;}
+}
+document.querySelectorAll('[data-provider-nav]').forEach(el=>el.addEventListener('click',e=>{if(el.tagName==='BUTTON'){e.preventDefault();showDashboardView(el.dataset.providerNav==='account'?'accounts':el.dataset.providerNav==='orders'?'orders':'instantRequests');}}));
+$('refreshProviderReviews')?.addEventListener('click',loadProviderReviews);
 async function loadBookings(){
  $('bookingList').className='loading';$('bookingList').textContent='Loading bookings…';
  try{const d=await jsonFetch('/api/provider/bookings');bookings=d.bookings||[];
+  renderBookingHistory();
   $('totalCount').textContent=bookings.length;
   $('pendingCount').textContent=bookings.filter(b=>b.status==='pending').length;
   $('activeCount').textContent=bookings.filter(b=>b.status==='accepted').length;
