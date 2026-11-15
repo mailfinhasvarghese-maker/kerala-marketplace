@@ -104,7 +104,7 @@ a,.link,.accent{color:#20B486}
   <p class="muted" id="photoUploadStatus" aria-live="polite"></p>
 </div>
 </section>
-<section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account access</label><p>Customer and provider access use this same login.</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div></section>
+<section class="panel" id="settings" style="margin-top:18px"><div class="section-head"><div><h2>Account details</h2><p>Current sign-in details for this provider account.</p></div></div><div class="settings-grid"><div class="detail"><label>Display name</label><p id="settingName">—</p></div><div class="detail"><label>Login email</label><p id="settingEmail">—</p></div><div class="detail"><label>Account access</label><p>Customer and provider access use this same login.</p></div><div class="detail"><label>Password</label><p>Password is stored securely as a hash. Password editing/recovery is not available yet.</p></div></div><div class="field account-language-host" style="max-width:420px;margin-top:18px"><label for="providerLanguageSelect">Preferred language</label><select id="providerLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select><p class="muted" id="providerLanguageStatus" role="status">Your language preference is saved to your account.</p></div></section>
 </div></div></main><nav class="provider-bottom-nav" aria-label="Main navigation">
  <a href="/" data-provider-nav="home" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
  <a href="/#categories" data-provider-nav="categories" aria-label="Categories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Categories</span></a>
@@ -126,11 +126,15 @@ async function init(){
  try{
   const me=await jsonFetch('/api/auth/me');account=me.account;
   if(account.role!=='provider'){location.href='/';return;}
+  window.nearestorAccountLanguage=account.language||'en';
+  if(window.nattukaarSetLanguage)window.nattukaarSetLanguage(window.nearestorAccountLanguage);
   const name=account.display_name||account.email.split('@')[0];
   $('greeting').textContent='Hi, '+name;
   $('accountEmail').textContent=account.email;
   $('profileSummary').textContent='Provider account ID: '+(account.provider_id||'Not linked');
   $('settingName').textContent=name;$('settingEmail').textContent=account.email;
+  $('providerLanguageSelect').value=account.language||'en';
+  $('providerLanguageSelect').addEventListener('change',async function(){const select=this,status=$('providerLanguageStatus');select.disabled=true;status.textContent='Saving…';try{const result=await jsonFetch('/api/account/language',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:select.value})});account.language=result.language;window.nearestorAccountLanguage=result.language;if(window.nattukaarSetLanguage)window.nattukaarSetLanguage(result.language);status.textContent='Language preference saved.';}catch(err){status.textContent=err.message;select.value=account.language||'en';}finally{select.disabled=false;}});
   await loadServiceCategories();
   await Promise.allSettled([loadProfile(),loadProviderPhotos(),loadBookings(),loadInstantRequests(),loadAvailability()]);
   showDashboardView('instantRequests');
