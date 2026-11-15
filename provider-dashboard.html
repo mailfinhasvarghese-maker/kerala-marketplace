@@ -127,6 +127,7 @@ async function init(){
   const me=await jsonFetch('/api/auth/me');account=me.account;
   if(account.role!=='provider'){location.href='/';return;}
   window.nearestorAccountLanguage=account.language||'en';
+  if(window.nattukaarSetLanguage)window.nattukaarSetLanguage(window.nearestorAccountLanguage);
   const name=account.display_name||account.email.split('@')[0];
   $('greeting').textContent='Hi, '+name;
   $('accountEmail').textContent=account.email;
