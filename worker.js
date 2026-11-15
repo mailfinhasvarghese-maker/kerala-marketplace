@@ -671,6 +671,7 @@ export default {
           if (signedInAccount.provider_id) return respond({error:"A provider profile is already linked to this account. Open your provider dashboard to manage it."},409);
         } else {
           if (accountPassword.length < 10 || accountPassword.length > 200) return respond({error:"A password of at least 10 characters is required for a new provider account."},400);
+          if (!["en","ml","hi"].includes(String(body.language||""))) return respond({error:"Choose your preferred language."},400);
           if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email = ?").bind(accountEmail).first()) return respond({error:"An account with this email already exists. Sign in first, then add your provider profile."},409);
         }
         const businessName = String(body.business_name || "").trim().slice(0,160);
@@ -748,7 +749,7 @@ export default {
         } else {
           const salt = randomToken();
           const passwordDigest = await derivePassword(accountPassword, salt);
-          const accountResult = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,provider_id) VALUES (?,?,?,?, 'provider', ?)").bind(accountEmail,contactName,salt,passwordDigest,providerId).run();
+          const accountResult = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,provider_id,language) VALUES (?,?,?,?, 'provider', ?, ?)").bind(accountEmail,contactName,salt,passwordDigest,providerId,String(body.language)).run();
           accountId = accountResult.meta.last_row_id;
           token = await issueSession(accountId, env.DB);
         }
@@ -758,7 +759,7 @@ export default {
           provider_id: providerId,
           status: "pending",
           token,
-          account: {id:accountId,email:accountEmail,display_name:signedInAccount?.display_name||contactName,role:"provider",provider_id:providerId}
+          account: {id:accountId,email:accountEmail,display_name:signedInAccount?.display_name||contactName,language:signedInAccount?.language||String(body.language||'en'),role:"provider",provider_id:providerId}
         }, 201);
       }
 
