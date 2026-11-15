@@ -2107,6 +2107,7 @@ function openModal(type, p = null) {
         ['Mobile number', 'phone', 'tel', 'Your contact number'],
         ['Email for sign-in', 'email', 'email', 'you@example.com'],
         ['Password (10+ characters)', 'password', 'password', 'Create a password'],
+        ['Preferred language', 'language', 'select', ''],
         ['Main service category', 'service', 'select', ''],
         ['Service subcategory', 'subcategory', 'select', ''],
         ['District', 'district', 'select', ''],
@@ -2129,7 +2130,9 @@ function openModal(type, p = null) {
       (x[1] === 'details' ? 'full' : '') +
       '"><label for="' + id + '">' + x[0] + '</label>';
 
-    if (x[1] === 'service') {
+    if (x[1] === 'language') {
+      html += '<select id="'+id+'" required><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select>';
+    } else if (x[1] === 'service') {
       html += '<select id="' + id + '" required>' +
         '<option value="">Choose main category</option>' +
         serviceCategories.filter(c=>!c.parent_id).map(c => '<option value="' + esc(c.slug) + '">' + esc(currentLanguage==='ml'?(c.name_ml||c.name):currentLanguage==='hi'?(c.name_hi||c.name):c.name) + '</option>').join('') +
@@ -2175,6 +2178,7 @@ function openModal(type, p = null) {
     const passwordField = $('f_password');
     if (emailField) { emailField.value = currentAccount.email; emailField.readOnly = true; }
     if (passwordField) { passwordField.required = false; passwordField.closest('.field').style.display = 'none'; }
+    const languageField=$('f_language');if(languageField){languageField.required=false;languageField.closest('.field').style.display='none';}
     $('modalSubtitle').textContent = 'Add a provider profile to your existing Nearestor account. Your customer login and bookings will remain unchanged.';
   }
 
@@ -2543,6 +2547,7 @@ $('requestForm').addEventListener('submit', async e => {
         contact_name: $('f_name').value.trim(),
         email: $('f_email').value.trim(),
         password: $('f_password').value,
+        language: $('f_language')?.value||'',
         business_name: $('f_business').value.trim(),
         phone: $('f_phone').value.trim(),
         category: $('f_service').value.trim(),
@@ -2590,7 +2595,7 @@ $('requestForm').addEventListener('submit', async e => {
 
     $('requestForm').reset();
     closeModal();
-    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;updateAuthButtons();}
+    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();}
 
     toast(isProvider
       ? 'Registration submitted successfully for review.'
