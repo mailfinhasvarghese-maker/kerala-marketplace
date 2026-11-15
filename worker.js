@@ -38,12 +38,12 @@ async function runSchema(db) {
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_service_requests_customer ON service_requests(customer_account_id,created_at)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_service_recipients_provider ON service_request_recipients(provider_id,status)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS provider_images (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, object_key TEXT NOT NULL UNIQUE, content_type TEXT NOT NULL DEFAULT 'image/jpeg', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
-  await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, language TEXT NOT NULL DEFAULT 'en', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS provider_availability_activations (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, standard_fee_inr INTEGER NOT NULL DEFAULT 5, promotional_discount_inr INTEGER NOT NULL DEFAULT 5, amount_paid_inr INTEGER NOT NULL DEFAULT 0, promotion_code TEXT NOT NULL DEFAULT 'LAUNCH_PROMO', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_availability_activations_provider ON provider_availability_activations(provider_id, created_at)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
-  const additions = {providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"],["is_available","INTEGER NOT NULL DEFAULT 0"],["available_until","TEXT"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
+  const additions = {user_accounts:[["language","TEXT NOT NULL DEFAULT 'en'"]],providers:[["latitude","REAL"],["longitude","REAL"],["subcategory_id","INTEGER"],["is_available","INTEGER NOT NULL DEFAULT 0"],["available_until","TEXT"]],service_requests:[["subcategory_id","INTEGER"]],booking_requests:[["customer_account_id","INTEGER"],["provider_response_at","TEXT"],["completed_at","TEXT"],["provider_quote","REAL"],["provider_quote_note","TEXT"],["customer_counter_offer","REAL"],["customer_counter_note","TEXT"]],customer_reviews:[["booking_request_id","INTEGER"],["customer_account_id","INTEGER"]]};
   for (const [table, columns] of Object.entries(additions)) {
     const info = await db.prepare("PRAGMA table_info("+table+")").all();
     const names = new Set((info.results||[]).map(x=>x.name));
@@ -65,7 +65,7 @@ async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
-  return await db.prepare("SELECT a.id,a.email,a.display_name,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
+  return await db.prepare("SELECT a.id,a.email,a.display_name,a.language,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
 }
 async function issueSession(accountId, db) {
   const token = randomToken();
@@ -163,13 +163,14 @@ export default {
         const email = String(body.email || "").trim().toLowerCase();
         const displayName = String(body.display_name || "").trim().slice(0,100);
         const password = String(body.password || "");
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !displayName || password.length < 10 || password.length > 200) return respond({error:"Enter a valid email, your name, and a password of at least 10 characters."},400);
+        const language = ["en","ml","hi"].includes(String(body.language||"")) ? String(body.language) : "";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !displayName || !language || password.length < 10 || password.length > 200) return respond({error:"Enter a valid email, your name, and a password of at least 10 characters."},400);
         if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email=?").bind(email).first()) return respond({error:"An account with this email already exists. Please sign in."},409);
         const salt = randomToken();
         const passwordDigest = await derivePassword(password,salt);
-        const result = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role) VALUES (?,?,?,?,'customer')").bind(email,displayName,salt,passwordDigest).run();
+        const result = await env.DB.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,language) VALUES (?,?,?,?,'customer',?)").bind(email,displayName,salt,passwordDigest,language).run();
         const token = await issueSession(result.meta.last_row_id,env.DB);
-        return respond({ok:true,token,account:{id:result.meta.last_row_id,email,display_name:displayName,role:"customer"}},201);
+        return respond({ok:true,token,account:{id:result.meta.last_row_id,email,display_name:displayName,role:"customer",language}},201);
       }
       if (path === "/api/auth/login" && request.method === "POST") {
         if (await rateLimited(env.DB, "login-ip:" + ip, 40, 900)) return respond({error:"Too many sign-in attempts. Please try again in a few minutes."},429);
@@ -177,15 +178,24 @@ export default {
         const email = String(body.email||"").trim().toLowerCase();
         const password = String(body.password||"");
         if (await rateLimited(env.DB, "login:" + ip + ":" + email, 8, 900)) return respond({error:"Too many sign-in attempts. Please try again in a few minutes."},429);
-        const account = await env.DB.prepare("SELECT a.id,a.email,a.display_name,a.password_salt,a.password_hash,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_accounts a LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE a.email=?").bind(email).first();
+        const account = await env.DB.prepare("SELECT a.id,a.email,a.display_name,a.language,a.password_salt,a.password_hash,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_accounts a LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE a.email=?").bind(email).first();
         const loginDigest = await derivePassword(password, account ? account.password_salt : "no-such-account-salt");
         if (!account || loginDigest !== account.password_hash) return respond({error:"Email or password is incorrect."},401);
         const token = await issueSession(account.id,env.DB);
-        return respond({ok:true,token,account:{id:account.id,email:account.email,display_name:account.display_name,role:account.role,provider_id:account.provider_id,job_role_id:account.job_role_id||null,job_title:account.job_title||null,permissions_json:account.permissions_json||"[]",is_main_admin:Number(account.is_main_admin||0)===1}});
+        return respond({ok:true,token,account:{id:account.id,email:account.email,display_name:account.display_name,language:account.language||'en',role:account.role,provider_id:account.provider_id,job_role_id:account.job_role_id||null,job_title:account.job_title||null,permissions_json:account.permissions_json||"[]",is_main_admin:Number(account.is_main_admin||0)===1}});
       }
       if (path === "/api/auth/me" && request.method === "GET") {
         const account = await getAccount(request,env.DB);
         return account ? respond({account}) : respond({error:"Please sign in."},401);
+      }
+      if (path === "/api/account/language" && request.method === "POST") {
+        const account = await getAccount(request,env.DB);
+        if (!account) return respond({error:"Please sign in."},401);
+        const body = await request.json();
+        const language = String(body.language||"").trim().toLowerCase();
+        if (!["en","ml","hi"].includes(language)) return respond({error:"Choose English, Malayalam or Hindi."},400);
+        await env.DB.prepare("UPDATE user_accounts SET language=? WHERE id=?").bind(language,account.id).run();
+        return respond({ok:true,language,message:"Language preference updated."});
       }
       if (path === "/api/auth/logout" && request.method === "POST") {
         const auth = request.headers.get("Authorization")||"";
