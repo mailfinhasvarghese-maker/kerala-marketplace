@@ -1989,7 +1989,7 @@ function openAuth(mode='login') {
   const fields=mode==='register'?[['Your name','displayName','text'],['Email','email','email'],['Password (10+ characters)','password','password']]:[['Email','email','email'],['Password','password','password']];
   $('guestLanguageField').style.display=mode==='register'?'none':'block';
   try{$('guestLanguageSelect').value=sessionStorage.getItem('nattukaar-guest-language')||'en';}catch(e){$('guestLanguageSelect').value='en';}
-  $('authFields').innerHTML=fields.map(function(x){return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" type="'+x[2]+'" '+(x[2]==='password'?'minlength="10" ':'')+'required></div>';}).join('')+(mode==='register'?'<div class="field full"><label for="auth_language">Preferred language *</label><select id="auth_language" required><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div>':'');
+  $('authFields').innerHTML=fields.map(function(x){return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" type="'+x[2]+'" '+(x[2]==='password'?'minlength="10" ':'')+'required></div>';}).join('')+(mode==='register'?'<div class="field full"><label for="auth_language">Preferred language *</label><select id="auth_language" required><option value="" selected disabled>Choose a language</option><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div>':'');
   $('authMessage').textContent='Email verification and password recovery are not configured yet.';
   $('authBg').classList.add('open'); document.body.style.overflow='hidden';
 }
