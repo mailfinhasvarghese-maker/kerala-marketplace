@@ -179,7 +179,7 @@
   function setLanguage(value) {
     language = ["en", "ml", "hi"].includes(value) ? value : "en";
     document.documentElement.lang = language;
-    try { localStorage.setItem("nattukaar-language", language); } catch (_) {}
+    try { sessionStorage.setItem("nattukaar-guest-language", language); } catch (_) {}
     scan(document.body);
     const select = document.querySelector("#nattukaarLanguageControl select");
     if (select) select.value = language;
@@ -187,31 +187,15 @@
   window.nattukaarSetLanguage = setLanguage;
 
   document.addEventListener("DOMContentLoaded", function () {
-    // The public homepage has its own selector and translation dictionaries.
+    // The homepage owns its guest selector. Signed-in dashboards place language
+    // preferences inside their Accounts settings rather than in the header.
     if (document.getElementById("languageToggle")) return;
-
-    const box = document.createElement("label");
-    box.id = "nattukaarLanguageControl";
-    box.style.cssText = "display:inline-flex;gap:6px;align-items:center;font:13px Arial,sans-serif;margin:4px 0";
-    const label = document.createElement("span");
-    label.textContent = "Language";
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", "Choose language");
-    select.style.cssText = "padding:7px 9px;border:1px solid #cbd8cf;border-radius:8px;background:#fff;color:#17231d";
-    [["en","English"],["ml","മലയാളം"],["hi","हिन्दी"]].forEach(([value, text]) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = text;
-      select.appendChild(option);
-    });
-    select.addEventListener("change", () => setLanguage(select.value));
-    box.append(label, select);
-    const host = document.querySelector(".nav-actions,.actions,header") || document.body;
-    host.appendChild(box);
-
-    let saved = "en";
-    try { saved = localStorage.getItem("nattukaar-language") || "en"; } catch (_) {}
+    const select = document.getElementById("providerLanguageSelect");
+    if (select) select.addEventListener("change", () => setLanguage(select.value));
+    let saved = window.nearestorAccountLanguage || "en";
+    try { if (!window.nearestorAccountLanguage) saved = sessionStorage.getItem("nattukaar-guest-language") || "en"; } catch (_) {}
     setLanguage(saved);
+    if (select) select.value = saved;
 
     const observer = new MutationObserver(records => records.forEach(record => {
       if (record.type === "characterData") {
