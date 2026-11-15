@@ -1560,7 +1560,7 @@ const $ = id => document.getElementById(id);
   "Search a town, locality or district":"നഗരം, പ്രദേശം അല്ലെങ്കിൽ ജില്ല തിരയുക",
   "Start typing a service...":"ഒരു സേവനത്തിന്റെ പേര് ടൈപ്പ് ചെയ്യുക..."
  };
- let currentLanguage="en";
+ let currentLanguage="en",accountLanguageActive=false;
  const allReverseTranslations=Object.fromEntries([...Object.entries(translations),...Object.entries(hindiTranslations),...Object.entries(attrMap)].map(([en,value])=>[value,en]));
  const dictionaries={en:{},ml:translations,hi:hindiTranslations};
  function dictionary(){return dictionaries[currentLanguage]||{};}
@@ -1625,7 +1625,7 @@ function setLanguage(lang){
  translateTree(document.body,currentLanguage!=="en");
  renderCategoryLanguage();
  const selector=document.getElementById("languageToggle");if(selector)selector.value=currentLanguage;
- try{sessionStorage.setItem("nattukaar-guest-language",currentLanguage);}catch(e){}
+ if(!accountLanguageActive){try{sessionStorage.setItem("nattukaar-guest-language",currentLanguage);}catch(e){}}
 }
  window.nattukaarSetLanguage=setLanguage;
  document.addEventListener("change",event=>{if(event.target&&event.target.matches("#guestLanguageSelect")){setLanguage(event.target.value);try{sessionStorage.setItem("nattukaar-guest-language",event.target.value);}catch(e){}}});
@@ -1995,8 +1995,8 @@ function openAuth(mode='login') {
 }
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
 async function refreshAccount(){
-  if(!authToken){currentAccount=null;updateAuthButtons();return;}
-  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
+  if(!authToken){currentAccount=null;accountLanguageActive=false;try{setLanguage(sessionStorage.getItem('nattukaar-guest-language')||'en');}catch(e){setLanguage('en');}updateAuthButtons();return;}
+  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;accountLanguageActive=true;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
   catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;updateAuthButtons();}
 }
 async function openAccount(){
@@ -2044,7 +2044,7 @@ async function openAccount(){
     $('accountContent').querySelectorAll('form[data-rate]').forEach(function(form){form.addEventListener('submit',async function(e){e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/reviews',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(form.dataset.rate),rating:Number(form.elements.rating.value),review_text:form.elements.review_text.value.trim()})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Review submitted for moderation.');openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
     $('accountContent').insertAdjacentHTML('beforeend','<section class="account-language-settings"><h3>Language settings</h3><p>Choose the language used across Nearestor on your account.</p><label for="accountLanguageSelect">Preferred language</label><select id="accountLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select><p id="accountLanguageStatus" role="status"></p></section>');
     $('accountLanguageSelect').value=currentAccount.language||'en';
-    $('accountLanguageSelect').addEventListener('change',async function(){const select=this,status=$('accountLanguageStatus');select.disabled=true;status.textContent='Saving…';try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/account/language',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({language:select.value})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error||'Could not save language.');currentAccount.language=dd.language;setLanguage(dd.language);status.textContent='Language preference saved.';}catch(err){status.textContent=err.message;select.value=currentAccount.language||'en';}finally{select.disabled=false;}});
+    $('accountLanguageSelect').addEventListener('change',async function(){const select=this,status=$('accountLanguageStatus');select.disabled=true;status.textContent='Saving…';try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/account/language',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({language:select.value})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error||'Could not save language.');currentAccount.language=dd.language;accountLanguageActive=true;setLanguage(dd.language);status.textContent='Language preference saved.';}catch(err){status.textContent=err.message;select.value=currentAccount.language||'en';}finally{select.disabled=false;}});
   }catch(e){$('accountContent').textContent=e.message;}
 }
 
@@ -2378,13 +2378,13 @@ $('authForm').addEventListener('submit',async function(e){
  e.preventDefault();const btn=$('authSubmit');btn.disabled=true;
  try{const payload={email:$('auth_email').value.trim(),password:$('auth_password').value};if(authMode==='register'){payload.display_name=$('auth_displayName').value.trim();payload.language=$('auth_language').value;}
  const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/'+(authMode==='register'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw Error(d.error||'Sign in failed.');
- authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();closeAuth();
+ authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;accountLanguageActive=true;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();closeAuth();
  
  toast('Signed in successfully.');
  if(pendingProvider){const p=pendingProvider;pendingProvider=null;openModal('booking',p);}
  }catch(err){$('authMessage').textContent=err.message;}finally{btn.disabled=false;}
 });
-$('signOut').addEventListener('click',async function(){try{await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/logout',{method:'POST',headers:authHeaders()});}catch(e){}authToken='';currentAccount=null;localStorage.removeItem('nattukaar_token');updateAuthButtons();$('accountBg').classList.remove('open');document.body.style.overflow='';toast('Signed out.');});
+$('signOut').addEventListener('click',async function(){try{await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/logout',{method:'POST',headers:authHeaders()});}catch(e){}authToken='';currentAccount=null;accountLanguageActive=false;localStorage.removeItem('nattukaar_token');try{setLanguage(sessionStorage.getItem('nattukaar-guest-language')||'en');}catch(e){setLanguage('en');}updateAuthButtons();$('accountBg').classList.remove('open');document.body.style.overflow='';toast('Signed out.');});
 
 // Removed obsolete listener for the deleted duplicate header search form.
 $('searchForm').addEventListener('submit', e => {
@@ -2595,7 +2595,7 @@ $('requestForm').addEventListener('submit', async e => {
 
     $('requestForm').reset();
     closeModal();
-    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();}
+    if(isProvider && result.token){authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;accountLanguageActive=true;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();}
 
     toast(isProvider
       ? 'Registration submitted successfully for review.'
