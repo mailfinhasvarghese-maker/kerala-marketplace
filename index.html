@@ -1090,6 +1090,8 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
 @keyframes nearestor-letter-in{from{transform:translate3d(0,110%,0);opacity:0}to{transform:translate3d(0,0,0);opacity:1}}
 @keyframes nearestor-letter-out{from{transform:translate3d(0,0,0);opacity:1}to{transform:translate3d(0,-115%,0);opacity:0}}
 @media(prefers-reduced-motion:reduce){.rotating-search-word.is-entering .rotating-search-letter,.rotating-search-word.is-leaving .rotating-search-letter{animation:none}}
+/* Responsive header refinement for desktop, tablet and mobile. */
+.nav-inner{min-width:0;display:grid;grid-template-columns:auto auto minmax(220px,1fr) auto;align-items:center;gap:14px}.nav-inner>.links{justify-self:end;min-width:0}.header-search-wrap{min-width:0;width:100%}.brand{min-width:0}.brand>span:last-child{white-space:nowrap}@media(max-width:900px){.nav-inner{grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:10px 0;height:auto}.nav-inner>.brand{grid-column:1;grid-row:1}.nav-inner>.links{grid-column:2;grid-row:1}.nav-inner>#searchLocallyBtn{grid-column:1;grid-row:2;width:100%;min-width:0}.nav-inner>.header-search-wrap{grid-column:2;grid-row:2;width:100%;min-width:0}.nav-inner .header-search{width:100%;max-width:none}.nav-inner .links .auth-open-btn{font-size:12px}.nav-inner .links .auth-open-btn span{max-width:115px;overflow:hidden;text-overflow:ellipsis}}@media(max-width:520px){.nav-inner{grid-template-columns:minmax(0,1fr) auto}.brand{font-size:17px;gap:7px}.mark{width:34px;height:34px}.brand small{font-size:8px;letter-spacing:1px}.nav-inner>#searchLocallyBtn{min-height:42px}.nav-inner>.header-search-wrap{grid-column:1/-1;grid-row:3}.nav-inner>.links{grid-column:2;grid-row:1}.nav-inner>.links .auth-open-btn{padding:5px 0}.nav-inner>.links .auth-open-btn span{max-width:90px}.nav.is-scrolled .nav-inner{grid-template-columns:auto minmax(0,1fr) auto}.nav.is-scrolled .nav-inner>.brand{grid-column:1;grid-row:1}.nav.is-scrolled .nav-inner>.header-search-wrap{grid-column:2;grid-row:1}.nav.is-scrolled .nav-inner>#searchLocallyBtn{grid-column:3;grid-row:1}.nav.is-scrolled .nav-inner>.links{display:none}}
 </style></head>
 
 <body>
@@ -1112,7 +1114,6 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
       </form>
       <div id="headerSearchSuggestions" role="listbox" class="header-search-suggestions"></div>
     </div>
-    <select class="btn outline" id="languageToggle" aria-label="Choose language" title="Choose language"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select>
     <nav class="links">
       <button class="auth-open-btn" id="authOpen" type="button" aria-label="Customer sign in" title="Customer sign in"><span id="authButtonLabel">Customer sign in</span><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></button>
     </nav>
@@ -1254,7 +1255,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
     <div id="profileContent"></div>
   </article>
 </div>
-<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
+<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><div class="field" id="guestLanguageField"><label for="guestLanguageSelect">Guest browsing language</label><select id="guestLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
 
 <nav class="mobile-bottom-nav" aria-label="Main mobile navigation">
  <button type="button" data-mobile-nav="home" class="active" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
@@ -1624,10 +1625,10 @@ function setLanguage(lang){
  translateTree(document.body,currentLanguage!=="en");
  renderCategoryLanguage();
  const selector=document.getElementById("languageToggle");if(selector)selector.value=currentLanguage;
- try{localStorage.setItem("nattukaar-language",currentLanguage);}catch(e){}
+ try{sessionStorage.setItem("nattukaar-guest-language",currentLanguage);}catch(e){}
 }
  window.nattukaarSetLanguage=setLanguage;
- document.addEventListener("change",event=>{if(event.target&&event.target.matches("#languageToggle"))setLanguage(event.target.value);});
+ document.addEventListener("change",event=>{if(event.target&&event.target.matches("#guestLanguageSelect")){setLanguage(event.target.value);try{sessionStorage.setItem("nattukaar-guest-language",event.target.value);}catch(e){}}});
  const observer=new MutationObserver(records=>records.forEach(record=>{
   if(record.type==="characterData"){replaceText(record.target,currentLanguage!=="en");return;}
   record.addedNodes.forEach(node=>{
@@ -1637,7 +1638,7 @@ function setLanguage(lang){
  }));
  observer.observe(document.body,{childList:true,subtree:true,characterData:true});
  let savedLanguage="en";
- try{const saved=localStorage.getItem("nattukaar-language");savedLanguage=["en","ml","hi"].includes(saved)?saved:"en";}catch(e){}
+ try{const saved=sessionStorage.getItem("nattukaar-guest-language");savedLanguage=["en","ml","hi"].includes(saved)?saved:"en";}catch(e){}
  setLanguage(savedLanguage);
 })();</script>
 
@@ -1986,14 +1987,16 @@ function openAuth(mode='login') {
   $('authSwitch').textContent=mode==='register'?'I already have an account':'Create account';
   $('authSubmit').textContent=mode==='register'?'Create account':'Sign in';
   const fields=mode==='register'?[['Your name','displayName','text'],['Email','email','email'],['Password (10+ characters)','password','password']]:[['Email','email','email'],['Password','password','password']];
-  $('authFields').innerHTML=fields.map(function(x){return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" type="'+x[2]+'" '+(x[2]==='password'?'minlength="10" ':'')+'required></div>';}).join('');
+  $('guestLanguageField').style.display=mode==='register'?'none':'block';
+  try{$('guestLanguageSelect').value=sessionStorage.getItem('nattukaar-guest-language')||'en';}catch(e){$('guestLanguageSelect').value='en';}
+  $('authFields').innerHTML=fields.map(function(x){return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" type="'+x[2]+'" '+(x[2]==='password'?'minlength="10" ':'')+'required></div>';}).join('')+(mode==='register'?'<div class="field full"><label for="auth_language">Preferred language *</label><select id="auth_language" required><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div>':'');
   $('authMessage').textContent='Email verification and password recovery are not configured yet.';
   $('authBg').classList.add('open'); document.body.style.overflow='hidden';
 }
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
 async function refreshAccount(){
   if(!authToken){currentAccount=null;updateAuthButtons();return;}
-  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
+  try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
   catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;updateAuthButtons();}
 }
 async function openAccount(){
@@ -2039,6 +2042,9 @@ async function openAccount(){
     $('accountContent').querySelectorAll('form[data-counter]').forEach(function(form){form.addEventListener('submit',async function(e){e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/customer/booking-counter-offer',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(form.dataset.counter),offer:Number(form.elements.offer.value),note:form.elements.note.value.trim()})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Counter-offer sent to provider.');openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
     $('accountContent').querySelectorAll('[data-status]').forEach(function(btn){btn.addEventListener('click',async function(){btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/provider/booking-status',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(btn.dataset.id),status:btn.dataset.status})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Booking updated: '+dd.status);openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
     $('accountContent').querySelectorAll('form[data-rate]').forEach(function(form){form.addEventListener('submit',async function(e){e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/reviews',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({booking_request_id:Number(form.dataset.rate),rating:Number(form.elements.rating.value),review_text:form.elements.review_text.value.trim()})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error);toast('Review submitted for moderation.');openAccount();}catch(e){toast(e.message);btn.disabled=false;}});});
+    $('accountContent').insertAdjacentHTML('beforeend','<section class="account-language-settings"><h3>Language settings</h3><p>Choose the language used across Nearestor on your account.</p><label for="accountLanguageSelect">Preferred language</label><select id="accountLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select><p id="accountLanguageStatus" role="status"></p></section>');
+    $('accountLanguageSelect').value=currentAccount.language||'en';
+    $('accountLanguageSelect').addEventListener('change',async function(){const select=this,status=$('accountLanguageStatus');select.disabled=true;status.textContent='Saving…';try{const rr=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/account/language',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({language:select.value})});const dd=await rr.json();if(!rr.ok)throw Error(dd.error||'Could not save language.');currentAccount.language=dd.language;setLanguage(dd.language);status.textContent='Language preference saved.';}catch(err){status.textContent=err.message;select.value=currentAccount.language||'en';}finally{select.disabled=false;}});
   }catch(e){$('accountContent').textContent=e.message;}
 }
 
@@ -2366,9 +2372,9 @@ $('accountBg').addEventListener('click',function(e){if(e.target===$('accountBg')
 $('authSwitch').addEventListener('click',function(){openAuth(authMode==='register'?'login':'register');});
 $('authForm').addEventListener('submit',async function(e){
  e.preventDefault();const btn=$('authSubmit');btn.disabled=true;
- try{const payload={email:$('auth_email').value.trim(),password:$('auth_password').value};if(authMode==='register')payload.display_name=$('auth_displayName').value.trim();
+ try{const payload={email:$('auth_email').value.trim(),password:$('auth_password').value};if(authMode==='register'){payload.display_name=$('auth_displayName').value.trim();payload.language=$('auth_language').value;}
  const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/'+(authMode==='register'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw Error(d.error||'Sign in failed.');
- authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;updateAuthButtons();closeAuth();
+ authToken=d.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=d.account;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();closeAuth();
  
  toast('Signed in successfully.');
  if(pendingProvider){const p=pendingProvider;pendingProvider=null;openModal('booking',p);}
