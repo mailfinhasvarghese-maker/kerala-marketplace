@@ -71,8 +71,16 @@ a,.link,.accent{color:#20B486}
  .availability-workspace #availabilityToggle,.availability-workspace .availability-notice{grid-column:1;max-width:100%}
 }
 
-.provider-bottom-nav{display:none}
-.dashboard-section[hidden],#overview[hidden],#profile[hidden],#settings[hidden]{display:none!important}
+.provider-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:100;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:7px 8px calc(7px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #dce5ee;box-shadow:0 -5px 22px rgba(41,35,51,.09)}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+.dashboard-section[hidden],#overview[hidden],#profile[hidden],#settings[hidden],.stats[hidden]{display:none!important}
+.sidebar{display:none!important}.layout{grid-template-columns:minmax(0,1fr)!important}
+.dashboard-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 18px;padding:8px;background:#fff;border:1px solid #dce5ee;border-radius:14px}
+.dashboard-tabs button{min-width:0;min-height:42px;padding:9px 8px;border:1px solid transparent;border-radius:10px;background:#f5f8fa;color:#52647a;font-size:13px;font-weight:750;cursor:pointer}
+.dashboard-tabs button.active{background:#173C69;color:#fff;border-color:#173C69}
+.dashboard-tabs button:focus-visible{outline:3px solid #20B48666;outline-offset:2px}
+@media(max-width:600px){.dashboard-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.dashboard-tabs button{font-size:12px}}
+@media(min-width:901px){.provider-bottom-nav{padding-left:max(24px,calc((100vw - 760px)/2));padding-right:max(24px,calc((100vw - 760px)/2))}}
 #overview{display:contents}
 #instantRequests,#bookings,#bookingHistory,#providerReviews,#profile,#settings{margin-top:0!important;margin-bottom:16px}
 .provider-bottom-nav a,.provider-bottom-nav button{appearance:none;border:0;background:transparent;color:#64748b;text-decoration:none;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;cursor:pointer;border-radius:12px}
@@ -84,7 +92,7 @@ a,.link,.accent{color:#20B486}
 <body>
 <header class="top"><div class="wrap nav"><a class="brand" href="/">Nearestor<small>LOCAL SERVICES MARKETPLACE</small></a><div class="nav-actions"><button id="refreshBtn" class="btn soft refresh-icon-btn" type="button" aria-label="Refresh dashboard" title="Refresh dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg></button><span id="refreshMessage" class="refresh-message" role="status" aria-live="polite"></span><button id="signOut" class="btn outline">Sign out</button></div></div></header>
 <main class="wrap main">
-<section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section><section class="panel availability-workspace" id="availabilityPanel" aria-label="Available Now activation"><div class="availability-heading"><div><strong class="availability-title">🚕 Available Now</strong><div id="availabilityState" aria-live="polite" style="font-size:11px;font-weight:700;color:#087b3c;margin-top:3px">Checking…</div><small id="availabilityTimer" class="muted" style="font-size:11px">30-minute auto-off</small></div></div><div class="availability-pricing" aria-label="Activation price breakdown"><div class="availability-price-row"><span>Activation fee</span><strong>₹5.00</strong></div><div class="availability-price-row availability-discount"><span>Promotional discount</span><strong>−₹5.00</strong></div><div class="availability-price-row total"><span>Amount payable</span><strong>₹0.00</strong></div></div><div id="availabilityNotice" class="availability-notice" role="status" aria-live="polite"></div><button class="btn primary" id="availabilityToggle" type="button">Turn Available ON</button></section>
+<section class="welcome"><div><div class="eyebrow">Provider workspace</div><h1 id="greeting">Loading your dashboard…</h1><p class="sub">Manage customer requests, coordinate job details and agree on payment here.</p></div><button class="btn primary" id="jumpBookings">View bookings ↓</button></section><nav class="dashboard-tabs" aria-label="Provider workspace sections"><button type="button" data-dashboard-tab="instantRequests" class="active" aria-current="page">Instant Requests</button><button type="button" data-dashboard-tab="bookings">Customer Bookings</button><button type="button" data-dashboard-tab="bookingHistory">Booking History</button><button type="button" data-dashboard-tab="reviews">Reviews</button></nav><section class="panel availability-workspace" id="availabilityPanel" aria-label="Available Now activation"><div class="availability-heading"><div><strong class="availability-title">🚕 Available Now</strong><div id="availabilityState" aria-live="polite" style="font-size:11px;font-weight:700;color:#087b3c;margin-top:3px">Checking…</div><small id="availabilityTimer" class="muted" style="font-size:11px">30-minute auto-off</small></div></div><div class="availability-pricing" aria-label="Activation price breakdown"><div class="availability-price-row"><span>Activation fee</span><strong>₹5.00</strong></div><div class="availability-price-row availability-discount"><span>Promotional discount</span><strong>−₹5.00</strong></div><div class="availability-price-row total"><span>Amount payable</span><strong>₹0.00</strong></div></div><div id="availabilityNotice" class="availability-notice" role="status" aria-live="polite"></div><button class="btn primary" id="availabilityToggle" type="button">Turn Available ON</button></section>
 <div id="pageError" hidden class="error"></div>
 <div class="layout">
 <aside class="panel sidebar"><h3>Account settings</h3><p class="account-email" id="accountEmail">Loading account…</p><div class="menu"><a class="btn soft" href="#overview">▦ Overview</a><a class="btn outline" href="#instantRequests">⚡ Instant requests</a><a class="btn outline" href="#bookings">📋 Customer bookings</a><a class="btn outline" href="#profile">👤 Public profile</a><a class="btn outline" href="#settings">⚙ Account details</a><a class="btn outline" href="/">↗ View marketplace</a></div><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><p class="muted">Signed in as a provider. Keep your contact details available so customers can coordinate service requests.</p><div id="profileSummary" class="muted">Loading provider account details…</div></aside>
@@ -108,7 +116,7 @@ a,.link,.accent{color:#20B486}
 </div></div></main><nav class="provider-bottom-nav" aria-label="Main navigation">
  <a href="/" data-provider-nav="home" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
  <a href="/#categories" data-provider-nav="categories" aria-label="Categories"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Categories</span></a>
- <button type="button" data-provider-nav="account" aria-label="Accounts"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Accounts</span></button>
+ <button type="button" data-provider-nav="account" aria-label="Account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Account</span></button>
  <button type="button" data-provider-nav="orders" aria-label="Orders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-3-6 3z"/><path d="M9 8h6M9 12h6"/></svg><span>Orders</span></button>
 </nav><footer><div class="wrap">Nattukaar · Kerala Local Marketplace</div></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -323,13 +331,14 @@ $('refreshInstantRequests')?.addEventListener('click',async()=>{const btn=$('ref
 function showDashboardView(view){
  const ids=['instantRequests','bookings','bookingHistory','providerReviews','profile','settings'];
  ids.forEach(id=>{const el=$(id);if(el)el.hidden=true;});
- const stats=$('overview')?.querySelector('.stats');if(stats)stats.hidden=true;
+ const stats=$('overview')?.querySelector('.stats');if(stats)stats.hidden=view!=='instantRequests';
  if(view==='accounts'){$('profile').hidden=false;$('settings').hidden=false;}
- else if(view==='orders'){$('bookings').hidden=false;}
- else {const el=$(view);if(el)el.hidden=false;}
- document.querySelectorAll('[data-provider-nav]').forEach(el=>el.classList.toggle('active',el.dataset.providerNav===view));
- if(view==='bookingHistory')renderBookingHistory();
- if(view==='reviews')loadProviderReviews();
+ else if(view==='reviews'){$('providerReviews').hidden=false;loadProviderReviews();}
+ else if(view==='orders'||view==='bookings'){$('bookings').hidden=false;view='bookings';}
+ else if(view==='bookingHistory'){$('bookingHistory').hidden=false;renderBookingHistory();}
+ else {$('instantRequests').hidden=false;view='instantRequests';}
+ document.querySelectorAll('[data-dashboard-tab]').forEach(el=>{const active=el.dataset.dashboardTab===view;el.classList.toggle('active',active);if(active)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
+ document.querySelectorAll('[data-provider-nav]').forEach(el=>el.classList.toggle('active',(view==='accounts'&&el.dataset.providerNav==='account')||(['bookings','bookingHistory','reviews'].includes(view)&&el.dataset.providerNav==='orders')));
 }
 function renderBookingHistory(){
  const rows=bookings.filter(b=>['completed','rejected','cancelled','declined'].includes(String(b.status||'').toLowerCase()));
@@ -343,7 +352,9 @@ async function loadProviderReviews(){
  box.querySelectorAll('.provider-review-reply').forEach(form=>form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button'),status=form.querySelector('span');btn.disabled=true;try{const result=await jsonFetch('/api/provider/review-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({review_id:Number(form.dataset.review),reply:form.elements.reply.value})});status.textContent=result.message||'Reply saved.';}catch(err){status.textContent=err.message;}finally{btn.disabled=false;}}));
  }catch(e){box.className='error';box.textContent=e.message;}
 }
-document.querySelectorAll('[data-provider-nav]').forEach(el=>el.addEventListener('click',e=>{if(el.tagName==='BUTTON'){e.preventDefault();showDashboardView(el.dataset.providerNav==='account'?'accounts':el.dataset.providerNav==='orders'?'orders':'instantRequests');}}));
+document.querySelectorAll('[data-provider-nav]').forEach(el=>el.addEventListener('click',e=>{if(el.tagName==='BUTTON'){e.preventDefault();showDashboardView(el.dataset.providerNav==='account'?'accounts':el.dataset.providerNav==='orders'?'bookings':'instantRequests');}}));
+document.querySelectorAll('[data-dashboard-tab]').forEach(el=>el.addEventListener('click',()=>showDashboardView(el.dataset.dashboardTab)));
+$('jumpBookings')?.addEventListener('click',()=>{showDashboardView('bookings');document.querySelector('.dashboard-tabs')?.scrollIntoView({behavior:'smooth',block:'start'});});
 $('refreshProviderReviews')?.addEventListener('click',loadProviderReviews);
 async function loadBookings(){
  $('bookingList').className='loading';$('bookingList').textContent='Loading bookings…';
