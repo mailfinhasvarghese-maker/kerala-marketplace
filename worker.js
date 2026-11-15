@@ -164,7 +164,7 @@ export default {
         const displayName = String(body.display_name || "").trim().slice(0,100);
         const password = String(body.password || "");
         const language = ["en","ml","hi"].includes(String(body.language||"")) ? String(body.language) : "";
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !displayName || !language || password.length < 10 || password.length > 200) return respond({error:"Enter a valid email, your name, and a password of at least 10 characters."},400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !displayName || !language || password.length < 10 || password.length > 200) return respond({error:"Enter a valid email, your name, choose a language, and use a password of at least 10 characters."},400);
         if (await env.DB.prepare("SELECT id FROM user_accounts WHERE email=?").bind(email).first()) return respond({error:"An account with this email already exists. Please sign in."},409);
         const salt = randomToken();
         const passwordDigest = await derivePassword(password,salt);
