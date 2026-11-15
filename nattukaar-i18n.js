@@ -179,7 +179,7 @@
   function setLanguage(value) {
     language = ["en", "ml", "hi"].includes(value) ? value : "en";
     document.documentElement.lang = language;
-    try { sessionStorage.setItem("nattukaar-guest-language", language); } catch (_) {}
+    if (!window.nearestorAccountLanguage) { try { sessionStorage.setItem("nattukaar-guest-language", language); } catch (_) {} }
     scan(document.body);
     const select = document.querySelector("#nattukaarLanguageControl select");
     if (select) select.value = language;
