@@ -1997,7 +1997,7 @@ function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.
 async function refreshAccount(){
   if(!authToken){currentAccount=null;accountLanguageActive=false;try{setLanguage(sessionStorage.getItem('nattukaar-guest-language')||'en');}catch(e){setLanguage('en');}updateAuthButtons();return;}
   try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;accountLanguageActive=true;if(currentAccount.language)setLanguage(currentAccount.language);updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
-  catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;updateAuthButtons();}
+  catch(e){authToken='';localStorage.removeItem('nattukaar_token');currentAccount=null;accountLanguageActive=false;try{setLanguage(sessionStorage.getItem('nattukaar-guest-language')||'en');}catch(err){setLanguage('en');}updateAuthButtons();}
 }
 async function openAccount(){
   if(!authToken){openAuth('login');return;} await refreshAccount(); if(!currentAccount){openAuth('login');return;}
