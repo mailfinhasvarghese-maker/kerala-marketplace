@@ -1263,7 +1263,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
     <div id="profileContent"></div>
   </article>
 </div>
-<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form></div></div><div class="modal-bg" id="registrationLanguageBg" role="dialog" aria-modal="true" aria-labelledby="registrationLanguageTitle"><div class="modal registration-language-modal"><div class="modal-head"><div><h2 id="registrationLanguageTitle">Choose your language</h2><p>Select the language you want to use in Nattukaar.</p></div></div><div class="field full"><label for="registrationLanguageSelect">Preferred language</label><select id="registrationLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div><p class="note" id="registrationLanguageMessage">You can change this later from Account settings.</p><div class="form-actions"><button type="button" class="btn primary" id="saveRegistrationLanguage">Continue</button></div></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
+<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form><div class="auth-alternatives"><div class="auth-divider"><span>or continue with</span></div><button type="button" class="btn outline auth-provider-btn" id="googleSignIn" disabled>Continue with Google</button><button type="button" class="btn outline auth-provider-btn" id="appleSignIn" disabled>Continue with Apple</button><button type="button" class="btn outline auth-provider-btn" id="phoneSignIn">Continue with phone number</button><p class="note" id="authProviderStatus">Social sign-in will be available after the provider client IDs are configured. SMS verification will be connected later.</p><div id="phoneAuthPanel" hidden><div class="field full"><label for="phoneAuthNumber">Mobile number with country code</label><input id="phoneAuthNumber" type="tel" autocomplete="tel" placeholder="+971 5X XXX XXXX"></div><button type="button" class="btn primary" disabled>Send verification code</button><p class="note">Phone sign-in interface is prepared; SMS gateway activation is pending.</p></div></div></div></div><div class="modal-bg" id="registrationLanguageBg" role="dialog" aria-modal="true" aria-labelledby="registrationLanguageTitle"><div class="modal registration-language-modal"><div class="modal-head"><div><h2 id="registrationLanguageTitle">Choose your language</h2><p>Select the language you want to use in Nattukaar.</p></div></div><div class="field full"><label for="registrationLanguageSelect">Preferred language</label><select id="registrationLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div><p class="note" id="registrationLanguageMessage">You can change this later from Account settings.</p><div class="form-actions"><button type="button" class="btn primary" id="saveRegistrationLanguage">Continue</button></div></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
 
 <nav class="mobile-bottom-nav" aria-label="Main mobile navigation">
  <button type="button" data-mobile-nav="home" class="active" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
@@ -1274,6 +1274,8 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"></script>
 
 <script>
 let serviceCategories=[];
@@ -2002,6 +2004,26 @@ function openAuth(mode='login') {
   $('authBg').classList.add('open'); document.body.style.overflow='hidden';
 }
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
+const NEARESTOR_GOOGLE_CLIENT_ID = '';
+const NEARESTOR_APPLE_CLIENT_ID = '';
+function configureSocialAuth(){
+ const google=$('googleSignIn'), apple=$('appleSignIn');
+ if(google){google.disabled=!NEARESTOR_GOOGLE_CLIENT_ID;google.title=google.disabled?'Google client ID is not configured yet':'';}
+ if(apple){apple.disabled=!NEARESTOR_APPLE_CLIENT_ID;apple.title=apple.disabled?'Apple Services ID is not configured yet':'';}
+}
+async function completeSocialSignIn(provider,idToken){
+ const status=$('authProviderStatus');status.textContent='Verifying your '+provider+' account…';
+ try{
+  const response=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/oauth/'+provider,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_token:idToken})});
+  const result=await response.json();if(!response.ok)throw Error(result.error||'Sign-in failed.');
+  authToken=result.token;localStorage.setItem('nattukaar_token',authToken);currentAccount=result.account;accountLanguageActive=true;
+  if(currentAccount.language)window.nattukaarSetLanguage(currentAccount.language);
+  updateAuthButtons();closeAuth();toast('Signed in successfully.');
+  if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}
+  if(pendingProvider){const p=pendingProvider;pendingProvider=null;openModal('booking',p);}
+ }catch(error){status.textContent=error.message;}
+}
+
 async function refreshAccount(){
   if(!authToken){currentAccount=null;accountLanguageActive=false;try{window.nattukaarSetLanguage(sessionStorage.getItem('nattukaar-guest-language')||'en');}catch(e){window.nattukaarSetLanguage('en');}updateAuthButtons();return;}
   try{const r=await fetch('https://kerala-marketplace-api-v2.abmg-events.workers.dev/api/auth/me',{headers:authHeaders()});const d=await r.json();if(!r.ok)throw Error(d.error);currentAccount=d.account;accountLanguageActive=true;if(currentAccount.language)window.nattukaarSetLanguage(currentAccount.language);updateAuthButtons();if(currentAccount&&['admin','staff'].includes(currentAccount.role)&&location.pathname!=='/admin-dashboard.html'){location.replace('/admin-dashboard.html');return;}}
@@ -2378,6 +2400,18 @@ if(advancedSearchToggle&&advancedSearchPanel){advancedSearchToggle.addEventListe
 $('authOpen').addEventListener('click',function(){currentAccount?openAccount():openAuth('login');});
 const accountOpenButton=$('accountOpen'); if(accountOpenButton)accountOpenButton.addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();openAccount();});
 $('authClose').addEventListener('click',closeAuth);
+$('phoneSignIn').addEventListener('click',()=>{$('phoneAuthPanel').hidden=!$('phoneAuthPanel').hidden;});
+$('googleSignIn').addEventListener('click',()=>{
+ if(!NEARESTOR_GOOGLE_CLIENT_ID||!window.google?.accounts?.id){$('authProviderStatus').textContent='Google sign-in is not configured yet.';return;}
+ window.google.accounts.id.initialize({client_id:NEARESTOR_GOOGLE_CLIENT_ID,callback:response=>completeSocialSignIn('google',response.credential)});
+ window.google.accounts.id.prompt();
+});
+$('appleSignIn').addEventListener('click',async()=>{
+ if(!NEARESTOR_APPLE_CLIENT_ID||!window.AppleID){$('authProviderStatus').textContent='Apple sign-in is not configured yet.';return;}
+ try{window.AppleID.auth.init({clientId:NEARESTOR_APPLE_CLIENT_ID,scope:'name email',redirectURI:location.origin,usePopup:true});const result=await window.AppleID.auth.signIn();await completeSocialSignIn('apple',result.authorization.id_token);}catch(error){$('authProviderStatus').textContent=error.message||'Apple sign-in was cancelled.';}
+});
+configureSocialAuth();
+
 $('accountClose').addEventListener('click',function(){$('accountBg').classList.remove('open');document.body.style.overflow='';});
 $('authBg').addEventListener('click',function(e){if(e.target===$('authBg'))closeAuth();});
 $('accountBg').addEventListener('click',function(e){if(e.target===$('accountBg')){$('accountBg').classList.remove('open');document.body.style.overflow='';}});
