@@ -67,7 +67,7 @@ async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
-  return await db.prepare("SELECT a.id,a.email,a.display_name,a.language,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
+  return await db.prepare("SELECT a.id,a.email,a.display_name,a.language,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[' || char(34) || '*' || char(34) || ']' ELSE '[]' END),COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
 }
 async function issueSession(accountId, db) {
   const token = randomToken();
