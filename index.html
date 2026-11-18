@@ -1994,9 +1994,11 @@ function openAuth(mode='login') {
   $('authSubtitle').textContent=mode==='register'?'Create an account to request services and rate completed bookings.':'Use your email and password.';
   $('authSwitch').textContent=mode==='register'?'I already have an account':'Create account';
   $('authSubmit').textContent=mode==='register'?'Create account':'Sign in';
-  const fields=mode==='register'?[['Your name','displayName','text'],['Email','email','email'],['Password (10+ characters)','password','password']]:[['Email','email','email'],['Password','password','password']];
-  $('authFields').innerHTML=fields.map(function(x){return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" type="'+x[2]+'" '+(x[2]==='password'?'minlength="10" ':'')+'required></div>';}).join('');
-  $('authMessage').textContent='Email verification and password recovery are not configured yet.';
+  const registering=mode==='register';
+  const fields=registering?[['Your name','displayName','text','name'],['Email','email','email','email'],['Password (10+ characters)','password','password','new-password']]:[['Email','email','email','email'],['Password','password','password','current-password']];
+  $('authForm').setAttribute('autocomplete',registering?'on':'on');
+  $('authFields').innerHTML=fields.map(function(x){const isPassword=x[2]==='password';const isNewPassword=isPassword&&registering;return '<div class="field full"><label for="auth_'+x[1]+'">'+x[0]+'</label><input id="auth_'+x[1]+'" name="'+x[3]+'" type="'+x[2]+'" autocomplete="'+x[3]+'" '+(isNewPassword?'minlength="10" ':'')+'required></div>';}).join('');
+  $('authMessage').textContent=registering?'New passwords must be at least 10 characters.':'Email verification and password recovery are not configured yet.';
   $('authBg').classList.add('open'); document.body.style.overflow='hidden';
 }
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
