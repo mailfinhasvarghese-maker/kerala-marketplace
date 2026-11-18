@@ -40,6 +40,8 @@ async function runSchema(db) {
   await db.prepare("CREATE TABLE IF NOT EXISTS provider_images (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, object_key TEXT NOT NULL UNIQUE, content_type TEXT NOT NULL DEFAULT 'image/jpeg', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL UNIQUE COLLATE NOCASE, display_name TEXT NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('customer','provider')), provider_id INTEGER, language TEXT NOT NULL DEFAULT 'en', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS user_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS auth_identities (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER NOT NULL, provider TEXT NOT NULL CHECK(provider IN ('google','apple')), provider_subject TEXT NOT NULL, email TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(provider,provider_subject), FOREIGN KEY(account_id) REFERENCES user_accounts(id))").run();
+  await db.prepare("CREATE INDEX IF NOT EXISTS idx_auth_identities_account ON auth_identities(account_id)").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS provider_availability_activations (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_id INTEGER NOT NULL, standard_fee_inr INTEGER NOT NULL DEFAULT 5, promotional_discount_inr INTEGER NOT NULL DEFAULT 5, amount_paid_inr INTEGER NOT NULL DEFAULT 0, promotion_code TEXT NOT NULL DEFAULT 'LAUNCH_PROMO', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(provider_id) REFERENCES providers(id))").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_availability_activations_provider ON provider_availability_activations(provider_id, created_at)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at)").run();
@@ -65,7 +67,7 @@ async function getAccount(request, db) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
-  return await db.prepare("SELECT a.id,a.email,a.display_name,a.language,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[\"*\"]' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
+  return await db.prepare("SELECT a.id,a.email,a.display_name,a.language,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[' || char(34) || '*' || char(34) || ']' ELSE '[]' END),COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_sessions s JOIN user_accounts a ON a.id=s.account_id LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE s.token_hash=? AND s.expires_at>datetime('now')").bind(await hashText(token)).first();
 }
 async function issueSession(accountId, db) {
   const token = randomToken();
@@ -88,6 +90,58 @@ async function rateLimited(db, key, limit, windowSeconds) {
   if (Number(row.count) >= limit) return true;
   await db.prepare("UPDATE rate_limits SET count=count+1 WHERE key=?").bind(key).run();
   return false;
+}
+
+
+async function verifySocialIdentity(provider, idToken, env) {
+  if (!idToken || idToken.length > 12000) throw new Error("A valid sign-in token is required.");
+  if (provider === "google") {
+    if (!env.GOOGLE_CLIENT_ID) throw new Error("Google sign-in is not configured yet.");
+    const response = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken));
+    if (!response.ok) throw new Error("Google could not verify this sign-in. Please try again.");
+    const claims = await response.json();
+    if (claims.aud !== env.GOOGLE_CLIENT_ID || !["accounts.google.com","https://accounts.google.com"].includes(claims.iss) || Number(claims.exp) <= Math.floor(Date.now()/1000) || claims.email_verified !== "true" || !claims.sub || !claims.email) throw new Error("Google account verification failed.");
+    return {subject:String(claims.sub),email:String(claims.email).trim().toLowerCase(),name:String(claims.name||"").trim().slice(0,100)};
+  }
+  if (provider === "apple") {
+    if (!env.APPLE_CLIENT_ID) throw new Error("Apple sign-in is not configured yet.");
+    const parts=idToken.split(".");
+    if(parts.length!==3) throw new Error("Invalid Apple sign-in token.");
+    const header=JSON.parse(atob(parts[0].replace(/-/g,"+").replace(/_/g,"/")));
+    const claims=JSON.parse(atob(parts[1].replace(/-/g,"+").replace(/_/g,"/")));
+    if(header.alg!=="ES256" || !header.kid || claims.iss!=="https://appleid.apple.com" || claims.aud!==env.APPLE_CLIENT_ID || Number(claims.exp)<=Math.floor(Date.now()/1000) || !claims.sub || claims.email_verified!==true && claims.email_verified!=="true" || !claims.email) throw new Error("Apple account verification failed.");
+    const keyResponse=await fetch("https://appleid.apple.com/auth/keys");
+    if(!keyResponse.ok) throw new Error("Apple verification is temporarily unavailable.");
+    const keys=await keyResponse.json(), jwk=(keys.keys||[]).find(k=>k.kid===header.kid && k.kty==="EC" && k.crv==="P-256");
+    if(!jwk) throw new Error("Apple signing key was not recognized.");
+    const key=await crypto.subtle.importKey("jwk",jwk,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+    const signature=Uint8Array.from(atob(parts[2].replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+    const valid=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},key,signature,encoder.encode(parts[0]+"."+parts[1]));
+    if(!valid) throw new Error("Apple token signature is invalid.");
+    return {subject:String(claims.sub),email:String(claims.email).trim().toLowerCase(),name:""};
+  }
+  throw new Error("Unsupported sign-in provider.");
+}
+
+async function socialSignIn(provider, idToken, db, env) {
+  const identity=await verifySocialIdentity(provider,idToken,env);
+  let account=await db.prepare("SELECT account_id FROM auth_identities WHERE provider=? AND provider_subject=?").bind(provider,identity.subject).first();
+  let accountId=account?.account_id;
+  if(!accountId){
+    const existing=await db.prepare("SELECT id FROM user_accounts WHERE email=?").bind(identity.email).first();
+    if(existing){
+      accountId=existing.id; // Provider-verified email is required before linking.
+    } else {
+      const salt=randomToken(), digest=await derivePassword(randomToken(),salt);
+      const name=identity.name || identity.email.split("@")[0].slice(0,100) || "Nearestor user";
+      const inserted=await db.prepare("INSERT INTO user_accounts (email,display_name,password_salt,password_hash,role,language) VALUES (?,?,?,?,'customer','en')").bind(identity.email,name,salt,digest).run();
+      accountId=inserted.meta.last_row_id;
+    }
+    await db.prepare("INSERT INTO auth_identities (account_id,provider,provider_subject,email) VALUES (?,?,?,?)").bind(accountId,provider,identity.subject,identity.email).run();
+  }
+  const token=await issueSession(accountId,db);
+  const profile=await db.prepare("SELECT a.id,a.email,a.display_name,a.language,CASE WHEN sa.is_main_admin=1 THEN 'admin' WHEN sa.account_id IS NOT NULL THEN 'staff' ELSE a.role END AS role,a.provider_id,sa.job_role_id,COALESCE(jr.name,CASE WHEN sa.is_main_admin=1 THEN 'Main Admin' END) AS job_title,COALESCE(jr.permissions_json,CASE WHEN sa.is_main_admin=1 THEN '[' || char(34) || '*' || char(34) || ']' ELSE '[]' END) AS permissions_json,COALESCE(sa.is_main_admin,0) AS is_main_admin FROM user_accounts a LEFT JOIN staff_access sa ON sa.account_id=a.id LEFT JOIN job_roles jr ON jr.id=sa.job_role_id WHERE a.id=?").bind(accountId).first();
+  return {token,account:{id:profile.id,email:profile.email,display_name:profile.display_name,language:profile.language||"en",role:profile.role,provider_id:profile.provider_id,job_role_id:profile.job_role_id||null,job_title:profile.job_title||null,permissions_json:profile.permissions_json||"[]",is_main_admin:Number(profile.is_main_admin||0)===1}};
 }
 
 export default {
@@ -155,6 +209,18 @@ export default {
           ok: true,
           message: "Nattukaar database connected."
         });
+      }
+
+      if (path === "/api/auth/oauth/google" && request.method === "POST" || path === "/api/auth/oauth/apple" && request.method === "POST") {
+        if (await rateLimited(env.DB, "oauth:" + ip, 30, 900)) return respond({error:"Too many sign-in attempts. Please try again shortly."},429);
+        const provider=path.endsWith("/google")?"google":"apple";
+        const body=await request.json();
+        try {
+          const result=await socialSignIn(provider,String(body.id_token||""),env.DB,env);
+          return respond({ok:true,...result});
+        } catch(error) {
+          return respond({error:error.message||"Social sign-in failed."},401);
+        }
       }
 
       if (path === "/api/auth/register" && request.method === "POST") {
