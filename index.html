@@ -1047,6 +1047,7 @@ h1 em{font-style:normal;color:var(--g)}
  #instantRequestBtn{width:100%;align-self:stretch}
 }
 
+.auth-google-button{width:100%;min-height:44px;display:flex;justify-content:center;align-items:center;margin:8px 0}.auth-google-button>div{max-width:100%}
 </style>
 
 <style id="nattukaar-brand-colours">
@@ -1263,7 +1264,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
     <div id="profileContent"></div>
   </article>
 </div>
-<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form><div class="auth-alternatives"><div class="auth-divider"><span>or continue with</span></div><button type="button" class="btn outline auth-provider-btn" id="googleSignIn" disabled>Continue with Google</button><button type="button" class="btn outline auth-provider-btn" id="appleSignIn" disabled>Continue with Apple</button><button type="button" class="btn outline auth-provider-btn" id="phoneSignIn">Continue with phone number</button><p class="note" id="authProviderStatus">Social sign-in will be available after the provider client IDs are configured. SMS verification will be connected later.</p><div id="phoneAuthPanel" hidden><div class="field full"><label for="phoneAuthNumber">Mobile number with country code</label><input id="phoneAuthNumber" type="tel" autocomplete="tel" placeholder="+971 5X XXX XXXX"></div><button type="button" class="btn primary" disabled>Send verification code</button><p class="note">Phone sign-in interface is prepared; SMS gateway activation is pending.</p></div></div></div></div><div class="modal-bg" id="registrationLanguageBg" role="dialog" aria-modal="true" aria-labelledby="registrationLanguageTitle"><div class="modal registration-language-modal"><div class="modal-head"><div><h2 id="registrationLanguageTitle">Choose your language</h2><p>Select the language you want to use in Nattukaar.</p></div></div><div class="field full"><label for="registrationLanguageSelect">Preferred language</label><select id="registrationLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div><p class="note" id="registrationLanguageMessage">You can change this later from Account settings.</p><div class="form-actions"><button type="button" class="btn primary" id="saveRegistrationLanguage">Continue</button></div></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
+<div class="modal-bg" id="authBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="authTitle">Sign in</h2><p id="authSubtitle">Use your email and password.</p></div><button class="close" id="authClose">×</button></div><form id="authForm"><div id="authFields" class="form-grid"></div><div class="form-actions"><button type="button" class="btn outline" id="authSwitch">Create account</button><button type="submit" class="btn primary" id="authSubmit">Sign in</button></div><p class="note" id="authMessage">New passwords must be at least 10 characters.</p></form><div class="auth-alternatives"><div class="auth-divider"><span>or continue with</span></div><div class="auth-google-button" id="googleSignIn" aria-label="Continue with Google"></div><button type="button" class="btn outline auth-provider-btn" id="appleSignIn" disabled>Continue with Apple</button><button type="button" class="btn outline auth-provider-btn" id="phoneSignIn">Continue with phone number</button><p class="note" id="authProviderStatus">Social sign-in will be available after the provider client IDs are configured. SMS verification will be connected later.</p><div id="phoneAuthPanel" hidden><div class="field full"><label for="phoneAuthNumber">Mobile number with country code</label><input id="phoneAuthNumber" type="tel" autocomplete="tel" placeholder="+971 5X XXX XXXX"></div><button type="button" class="btn primary" disabled>Send verification code</button><p class="note">Phone sign-in interface is prepared; SMS gateway activation is pending.</p></div></div></div></div><div class="modal-bg" id="registrationLanguageBg" role="dialog" aria-modal="true" aria-labelledby="registrationLanguageTitle"><div class="modal registration-language-modal"><div class="modal-head"><div><h2 id="registrationLanguageTitle">Choose your language</h2><p>Select the language you want to use in Nattukaar.</p></div></div><div class="field full"><label for="registrationLanguageSelect">Preferred language</label><select id="registrationLanguageSelect"><option value="en">English</option><option value="ml">മലയാളം</option><option value="hi">हिन्दी</option></select></div><p class="note" id="registrationLanguageMessage">You can change this later from Account settings.</p><div class="form-actions"><button type="button" class="btn primary" id="saveRegistrationLanguage">Continue</button></div></div></div><div class="modal-bg" id="accountBg" role="dialog" aria-modal="true"><div class="modal"><div class="modal-head"><div><h2 id="accountTitle">My bookings</h2><p id="accountSubtitle"></p></div><button class="close" id="accountClose">×</button></div><div id="accountContent"></div><div class="form-actions"><button class="btn outline" id="signOut">Sign out</button></div></div></div><div class="toast" id="toast" role="status"></div>
 
 <nav class="mobile-bottom-nav" aria-label="Main mobile navigation">
  <button type="button" data-mobile-nav="home" class="active" aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
@@ -2006,9 +2007,21 @@ function openAuth(mode='login') {
 function closeAuth(){ $('authBg').classList.remove('open'); document.body.style.overflow=''; }
 const NEARESTOR_GOOGLE_CLIENT_ID = '636942009524-1pl271tleclbkts3ntk5f41lqo72j73i.apps.googleusercontent.com';
 const NEARESTOR_APPLE_CLIENT_ID = '';
+let googleButtonRendered=false;
 function configureSocialAuth(){
  const google=$('googleSignIn'), apple=$('appleSignIn');
- if(google){google.disabled=!NEARESTOR_GOOGLE_CLIENT_ID;google.title=google.disabled?'Google client ID is not configured yet':'';}
+ if(google){
+  google.setAttribute('aria-busy',NEARESTOR_GOOGLE_CLIENT_ID?'true':'false');
+  if(!NEARESTOR_GOOGLE_CLIENT_ID){google.textContent='Google sign-in is not configured';google.setAttribute('aria-disabled','true');}
+  else{
+   ensureGoogleIdentityServices().then(googleId=>{
+    if(googleButtonRendered)return;
+    googleId.initialize({client_id:NEARESTOR_GOOGLE_CLIENT_ID,callback:response=>completeSocialSignIn('google',response.credential)});
+    googleId.renderButton(google,{type:'standard',theme:'outline',size:'large',text:'continue_with',shape:'rectangular',logo_alignment:'left',width:320});
+    googleButtonRendered=true;google.setAttribute('aria-busy','false');
+   }).catch(error=>{google.textContent='Google sign-in could not load';google.setAttribute('aria-busy','false');$('authProviderStatus').textContent=error.message||'Unable to load Google sign-in.';});
+  }
+ }
  if(apple){apple.disabled=!NEARESTOR_APPLE_CLIENT_ID;apple.title=apple.disabled?'Apple Services ID is not configured yet':'';}
 }
 async function completeSocialSignIn(provider,idToken){
@@ -2415,19 +2428,7 @@ function ensureGoogleIdentityServices(){
  });
  return googleIdentityServicesPromise;
 }
-$('googleSignIn').addEventListener('click',async()=>{
- if(!NEARESTOR_GOOGLE_CLIENT_ID){$('authProviderStatus').textContent='Google Client ID is missing from this website build.';return;}
- const button=$('googleSignIn');button.disabled=true;
- try{
-  const googleId=await ensureGoogleIdentityServices();
-  googleId.initialize({client_id:NEARESTOR_GOOGLE_CLIENT_ID,callback:response=>completeSocialSignIn('google',response.credential)});
-  googleId.prompt(notification=>{
-   if(notification.isNotDisplayed?.())$('authProviderStatus').textContent='Google account prompt was not displayed. Try allowing third-party sign-in or use the Google button below.';
-   else if(notification.isSkippedMoment?.())$('authProviderStatus').textContent='Google sign-in was not completed. Please try again.';
-  });
- }catch(error){$('authProviderStatus').textContent=error.message||'Unable to start Google sign-in.';}
- finally{button.disabled=false;}
-});
+// Google Identity Services renders its own sign-in button; no One Tap prompt is required.
 $('appleSignIn').addEventListener('click',async()=>{
  if(!NEARESTOR_APPLE_CLIENT_ID||!window.AppleID){$('authProviderStatus').textContent='Apple sign-in is not configured yet.';return;}
  try{window.AppleID.auth.init({clientId:NEARESTOR_APPLE_CLIENT_ID,scope:'name email',redirectURI:location.origin,usePopup:true});const result=await window.AppleID.auth.signIn();await completeSocialSignIn('apple',result.authorization.id_token);}catch(error){$('authProviderStatus').textContent=error.message||'Apple sign-in was cancelled.';}
