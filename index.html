@@ -2401,10 +2401,34 @@ $('authOpen').addEventListener('click',function(){currentAccount?openAccount():o
 const accountOpenButton=$('accountOpen'); if(accountOpenButton)accountOpenButton.addEventListener('click',async function(){if(!authToken){openAuth('login');return;}await refreshAccount();openAccount();});
 $('authClose').addEventListener('click',closeAuth);
 $('phoneSignIn').addEventListener('click',()=>{$('phoneAuthPanel').hidden=!$('phoneAuthPanel').hidden;});
-$('googleSignIn').addEventListener('click',()=>{
- if(!NEARESTOR_GOOGLE_CLIENT_ID||!window.google?.accounts?.id){$('authProviderStatus').textContent='Google sign-in is not configured yet.';return;}
- window.google.accounts.id.initialize({client_id:NEARESTOR_GOOGLE_CLIENT_ID,callback:response=>completeSocialSignIn('google',response.credential)});
- window.google.accounts.id.prompt();
+async function ensureGoogleIdentityServices(){
+ if(window.google?.accounts?.id)return window.google.accounts.id;
+ const existing=document.querySelector('script[src^="https://accounts.google.com/gsi/client"]');
+ await new Promise((resolve,reject)=>{
+  const script=existing||document.createElement('script');
+  let settled=false;
+  const finish=(error)=>{if(settled)return;settled=true;error?reject(error):resolve();};
+  script.addEventListener('load',()=>finish(),{once:true});
+  script.addEventListener('error',()=>finish(new Error('Google sign-in library could not be loaded. Check your connection or browser content blockers.')),{once:true});
+  if(!existing){script.src='https://accounts.google.com/gsi/client';script.async=true;script.defer=true;document.head.appendChild(script);}
+  if(window.google?.accounts?.id)finish();
+  setTimeout(()=>finish(new Error('Google sign-in library did not load in time.')),10000);
+ });
+ if(!window.google?.accounts?.id)throw new Error('Google sign-in library loaded, but its API is unavailable. Check browser privacy settings or content blockers.');
+ return window.google.accounts.id;
+}
+$('googleSignIn').addEventListener('click',async()=>{
+ if(!NEARESTOR_GOOGLE_CLIENT_ID){$('authProviderStatus').textContent='Google Client ID is missing from this website build.';return;}
+ const button=$('googleSignIn');button.disabled=true;
+ try{
+  const googleId=await ensureGoogleIdentityServices();
+  googleId.initialize({client_id:NEARESTOR_GOOGLE_CLIENT_ID,callback:response=>completeSocialSignIn('google',response.credential)});
+  googleId.prompt(notification=>{
+   if(notification.isNotDisplayed?.())$('authProviderStatus').textContent='Google account prompt was not displayed. Try allowing third-party sign-in or use the Google button below.';
+   else if(notification.isSkippedMoment?.())$('authProviderStatus').textContent='Google sign-in was not completed. Please try again.';
+  });
+ }catch(error){$('authProviderStatus').textContent=error.message||'Unable to start Google sign-in.';}
+ finally{button.disabled=false;}
 });
 $('appleSignIn').addEventListener('click',async()=>{
  if(!NEARESTOR_APPLE_CLIENT_ID||!window.AppleID){$('authProviderStatus').textContent='Apple sign-in is not configured yet.';return;}
