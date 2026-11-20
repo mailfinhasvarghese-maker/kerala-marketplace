@@ -896,7 +896,7 @@ export default {
           if (!apiKeyOk && !canModerateReviews) return respond({ error: "Unauthorized." }, 401);
 
           const result = await env.DB.prepare(
-            "SELECT r.id, r.provider_id, r.reviewer_name, r.rating, r.review_text, " +
+            "SELECT r.id, r.provider_id, r.booking_request_id, r.reviewer_name, r.rating, r.review_text, " +
             "r.status, r.created_at, p.business_name " +
             "FROM customer_reviews r JOIN providers p ON p.id = r.provider_id " +
             "WHERE r.status = 'pending' ORDER BY r.created_at ASC LIMIT 200"
