@@ -887,8 +887,8 @@ export default {
           if(!booking || Number(booking.customer_account_id)!==Number(account.id)) return respond({error:"This booking does not belong to your account."},403);
           if(String(booking.status).toLowerCase()!=="completed") return respond({error:"You can rate only after the provider marks the booking completed."},409);
           if(await env.DB.prepare("SELECT id FROM customer_reviews WHERE booking_request_id=?").bind(bookingId).first()) return respond({error:"This booking has already been rated."},409);
-          const result=await env.DB.prepare("INSERT INTO customer_reviews (provider_id,reviewer_name,rating,review_text,status,booking_request_id,customer_account_id) VALUES (?,?,?,?,'pending',?,?)").bind(booking.provider_id,account.display_name,rating,reviewText,bookingId,account.id).run();
-          return respond({ok:true,review_id:result.meta.last_row_id,status:"pending",message:"Review submitted for moderation."},201);
+          const result=await env.DB.prepare("INSERT INTO customer_reviews (provider_id,reviewer_name,rating,review_text,status,booking_request_id,customer_account_id) VALUES (?,?,?,?,'published',?,?)").bind(booking.provider_id,account.display_name,rating,reviewText,bookingId,account.id).run();
+          return respond({ok:true,review_id:result.meta.last_row_id,status:"published",message:"Your review is now published."},201);
         }
 
         if (path === "/api/admin/reviews" && request.method === "GET") {
