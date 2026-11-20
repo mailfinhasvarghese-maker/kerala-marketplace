@@ -412,7 +412,8 @@ export default {
         const account=await getAccount(request,env.DB);
         if(!account || account.role!=="provider" || !account.provider_id) return respond({error:"Sign in with a provider account."},401);
         const result=await env.DB.prepare("SELECT id,reviewer_name,rating,review_text,provider_reply,created_at FROM customer_reviews WHERE provider_id=? AND status='published' ORDER BY created_at DESC LIMIT 100").bind(account.provider_id).all();
-        return respond({reviews:result.results||[]});
+        const summary=await env.DB.prepare("SELECT ROUND(AVG(rating),1) AS average_rating,COUNT(*) AS review_count FROM customer_reviews WHERE provider_id=? AND status='published'").bind(account.provider_id).first();
+        return respond({reviews:result.results||[],average_rating:summary?.average_rating??null,review_count:Number(summary?.review_count||0)});
       }
       if (path === "/api/provider/review-reply" && request.method === "POST") {
         const account=await getAccount(request,env.DB);
