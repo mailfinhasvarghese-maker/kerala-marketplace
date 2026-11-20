@@ -1223,7 +1223,7 @@ h1 em,.notice-right,.sample,.profile-detail a{color:#20B486}
         <h2>Offer a service in your area?</h2>
         <p>Build your profile so local customers can discover what you do.</p>
       </div>
-      <button class="btn" data-join>Register as a provider →</button>
+      <button type="button" class="btn" data-join onclick="try{openModal('provider')}catch(error){console.error('Provider registration could not open:',error);toast(error.message||'Could not open provider registration. Please try again.')}">Register as a provider →</button>
     </div>
   </div>
 </section>
@@ -2575,9 +2575,7 @@ $('categoryCards').addEventListener('click', e => {
 
 $('instantRequestBtn')?.addEventListener('click',()=>openModal('instant'));
 
-document.querySelectorAll('[data-join]').forEach(b => {
-  b.addEventListener('click', () => openModal('provider'));
-});
+// Provider registration is opened directly by the button's click handler.
 
 $('close').addEventListener('click', closeModal);
 $('cancel').addEventListener('click', closeModal);
